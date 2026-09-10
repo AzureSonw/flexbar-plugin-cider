@@ -1,0 +1,122 @@
+{
+  "name": "Cider",
+  "uuid": "com.sonw.cider",
+  "version": "1.0.0",
+  "author": "Sonw",
+  "entry": "backend/plugin.cjs",
+  "description": "Control Cider via FlexBar.",
+  "sdk": {
+    "version": "1.0.0"
+  },
+  "software": {
+    "minimumVersion": "2.2.2"
+  },
+  "os": [
+    {
+      "platform": "windows",
+      "minimumVersion": "11"
+    }
+  ],
+  "device": [
+    {
+      "name": "flexbar",
+      "version": "1.0.0"
+    }
+  ],
+  "keyLibrary": {
+    "title": "Cider",
+    "style": {
+      "icon": "mdi mdi-music"
+    },
+    "children": [
+      {
+        "title": "Now Playing",
+        "cid": "com.sonw.cider.nowPlaying",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": [
+            "windows"
+          ]
+        },
+        "style": {
+          "icon": "mdi mdi-music",
+          "width": 480,
+          "showIcon": true,
+          "showTitle": true,
+          "bgColor": "#000000",
+          "borderStyle": "none",
+          "iconPos": {
+            "X": 12,
+            "Y": 50
+          },
+          "titlePos": {
+            "X": 72,
+            "Y": 50
+          }
+        },
+        "data": {
+          "name": "nowPlaying"
+        }
+      },
+      {
+        "title": "Play/Pause",
+        "cid": "com.sonw.cider.playPause",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": [
+            "windows"
+          ]
+        },
+        "style": {
+          "icon": "mdi mdi-play-pause",
+          "width": 80,
+          "showTitle": false
+        },
+        "data": {
+          "name": "playPause"
+        }
+      },
+      {
+        "title": "Next",
+        "cid": "com.sonw.cider.next",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": [
+            "windows"
+          ]
+        },
+        "style": {
+          "icon": "mdi mdi-skip-next",
+          "width": 70,
+          "showTitle": false
+        },
+        "data": {
+          "name": "next"
+        }
+      },
+      {
+        "title": "Previous",
+        "cid": "com.sonw.cider.previous",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": [
+            "windows"
+          ]
+        },
+        "style": {
+          "icon": "mdi mdi-skip-previous",
+          "width": 90,
+          "showTitle": false
+        },
+        "data": {
+          "name": "previous"
+        }
+      }
+    ]
+  },
+  "configPage": "global_config"
+}
