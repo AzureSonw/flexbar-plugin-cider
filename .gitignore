@@ -1,0 +1,16 @@
+node_modules/
+logs/
+.vscode/
+.idea/
+.env*
+cider-token*.txt
+*.flexbar
+*.flexdesign
+*.rar
+*.zip
+test_unzip/
+*.log
+*.flexplugin
+com.sonw.cider.plugin/backend/
+com.sonw.cider.plugin/resources/THIRD_PARTY_LICENSES.txt
+com.sonw.cider.plugin/config.json

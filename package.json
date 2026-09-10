@@ -1,0 +1,36 @@
+{
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "plugin:link": "flexcli plugin link --path com.sonw.cider.plugin --uuid com.sonw.cider",
+    "plugin:restart": "flexcli plugin restart --uuid com.sonw.cider",
+    "plugin:debug": "flexcli plugin debug --uuid com.sonw.cider",
+    "plugin:validate": "flexcli plugin validate --path com.sonw.cider.plugin",
+    "plugin:pack": "flexcli plugin pack --path com.sonw.cider.plugin"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@eniac/flexcli": "^1.0.6",
+    "@rollup/plugin-commonjs": "^28.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.2",
+    "prettier": "^3.5.3",
+    "rollup": "^4.0.2"
+  },
+  "dependencies": {
+    "@eniac/flexdesigner": "^1.0.1",
+    "skia-canvas": "^3.0.8"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": false,
+    "printWidth": 120
+  },
+  "name": "flexbar-plugin-cider",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.19 <21"
+  }
+}
