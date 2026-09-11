@@ -14,7 +14,7 @@ English documentation: [README.md](README.md)
 - 点击 Now Playing 按键的任意位置（包括封面）可切换播放状态。
 - 使用电脑上的系统字体绘制中文、日文、韩文和带重音字符的文本，并保持封面比例。
 
-插件 ID：`com.sonw.cider`。作者：Sonw。版本：`1.3.1`。
+插件 ID：`com.sonw.cider`。作者：Sonw。版本：`1.4.0`。
 
 ## 安装与连接
 
