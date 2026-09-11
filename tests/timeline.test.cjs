@@ -59,7 +59,7 @@ test('invalid/offline/no-song timing is hidden and finite out-of-range positions
 })
 
 test('timeline pixels follow the real cover and runtime width at every requested progress value', async () => {
-  const widths = [1, 2, 7, 8, 16, 59, 60, 64, 65, 66, 68, 118, 119, 120, 180, 240, 300, 480, 600, 800]
+  const widths = [1, 2, 7, 8, 16, 59, 60, 64, 65, 66, 68, 120, 148, 149, 150, 180, 240, 300, 480, 600, 800]
   for (const width of widths) {
     for (const percent of [0, 1, 25, 50, 75, 99, 100]) {
       const image = await loadImage(await render({ title: '', artist: '', progress: { currentTime: percent, duration: 100 } }, key('nowPlaying', 1, width)))
@@ -70,21 +70,21 @@ test('timeline pixels follow the real cover and runtime width at every requested
       const coverRow = context.getImageData(0, 30, width, 1).data
       const coverPixels = []
       for (let x = 0; x < width; x++) if (coverRow[x * 4] === 51 && coverRow[x * 4 + 1] === 51) coverPixels.push(x)
-      const start = (coverPixels.at(-1) ?? 0) + 31
-      const barWidth = width - 30 - start
+      const start = (coverPixels.at(-1) ?? 0) + 46
+      const barWidth = width - 45 - start
       const trackPixels = []
       for (let x = 0; x < width; x++) if (row[x * 4] > 51 && row[x * 4 + 1] === row[x * 4]) trackPixels.push(x)
       if (barWidth > 0) {
-        if (width >= 68) assert.equal(start, 89)
+        if (width >= 68) assert.equal(start, 104)
         assert.equal(trackPixels[0], start)
-        assert.equal(trackPixels.at(-1), width - 31)
-        for (let x = start; x < width - 30; x++) {
+        assert.equal(trackPixels.at(-1), width - 46)
+        for (let x = start; x < width - 45; x++) {
           const relative = x - start, played = barWidth * percent / 100
           if (relative + 1 <= played) assert.equal(row[x * 4], 255)
           if (relative >= played) assert.equal(row[x * 4], 64)
         }
         assert.equal(context.getImageData(start, 51, 1, 1).data[3], 255)
-        assert.deepEqual([...context.getImageData(width - 30, 50, 30, 2).data].filter((_, i) => i % 4 !== 3), Array(180).fill(0))
+        assert.deepEqual([...context.getImageData(width - 45, 50, 45, 2).data].filter((_, i) => i % 4 !== 3), Array(270).fill(0))
         assert.deepEqual([...context.getImageData(start, 52, barWidth, 1).data].filter((_, i) => i % 4 !== 3), Array(barWidth * 3).fill(0))
       } else assert.equal(trackPixels.length, 0, 'insufficient width must hide the timeline')
     }
@@ -107,16 +107,16 @@ test('timeline geometry uses smaller saved cover sizes and invalid progress neve
     }
   }
   const draw = new Function('Canvas','loadImage',source('canvasRenderer.js').replace('export async function','async function') + '\nreturn renderNowPlaying')(Canvas,loadImage)
-  for (const [iconSize, start, center] of [[24,71,257],[42,89,266],[60,89,275]]) {
+  for (const [iconSize, start, center] of [[24,86,257],[42,104,266],[60,104,275]]) {
     rects.length = text.length = 0
     await draw({ title:'Title',artist:'Artist',progress:{ currentTime:50,duration:100 } }, { width:480, style:{ width:480,iconSize } })
-    assert.deepEqual(rects.filter(r => r.y === 50), [{x:start,y:50,w:450-start,h:2,color:'#404040'}, {x:start,y:50,w:(450-start)/2,h:2,color:'#ffffff'}])
+    assert.deepEqual(rects.filter(r => r.y === 50), [{x:start,y:50,w:435-start,h:2,color:'#404040'}, {x:start,y:50,w:(435-start)/2,h:2,color:'#ffffff'}])
     assert.deepEqual(text.filter(t => t.value !== '♪').map(t => [t.x,t.y,t.align]), [[center,15,'center'],[center,34,'center']])
   }
   for (const progress of [null, {}, {currentTime:NaN,duration:100}, {currentTime:Infinity,duration:100}, {currentTime:1,duration:Infinity}, {currentTime:1,duration:0}]) {
     rects.length = 0; await draw({ title:'Title',progress }, key('nowPlaying',1)); assert.equal(rects.filter(r => r.y === 50).length, 0)
   }
-  for (const [currentTime, expected] of [[-5,0],[1000,361]]) {
+  for (const [currentTime, expected] of [[-5,0],[1000,331]]) {
     rects.length = 0; await draw({title:'',progress:{currentTime,duration:100}},key('nowPlaying',1))
     assert.equal(rects.filter(r => r.y === 50 && r.color === '#ffffff')[0]?.w ?? 0, expected)
   }

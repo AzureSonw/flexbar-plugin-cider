@@ -68,7 +68,7 @@ upload the layout so FlexDesigner reloads the keys. The SDK has no documented no
 resize event; subsequent redraws reuse the last loaded dimensions.
 
 The timeline is 2 pixels high at y=50, with a dark-gray track and a white played
-section. It starts 30 pixels after the actual cover edge and ends 30 pixels before
+section. It starts 45 pixels after the actual cover edge and ends 45 pixels before
 the canvas edge, so its length follows the loaded key width. Title/artist use
 centered vertical anchors y=15/y=34 (y=26 for a title without an artist).
 Invalid timing or insufficient width hides the timeline. Paused snapshots do not

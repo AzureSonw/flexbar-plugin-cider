@@ -74,8 +74,8 @@ export async function renderNowPlaying(track, key) {
     context.fillText(fitText(context, track.artist, textWidth), textX, 34)
   }
 
-  const timelineX = coverX + coverSize + 30
-  const timelineWidth = Math.max(0, width - 30 - timelineX)
+  const timelineX = coverX + coverSize + 45
+  const timelineWidth = Math.max(0, width - 45 - timelineX)
   const progress = track.progress
   if (timelineWidth > 0 && Number.isFinite(progress?.currentTime) && Number.isFinite(progress?.duration) && progress.duration > 0) {
     const played = Math.max(0, Math.min(1, progress.currentTime / progress.duration))
