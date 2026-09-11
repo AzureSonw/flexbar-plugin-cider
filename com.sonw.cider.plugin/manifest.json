@@ -1,11 +1,11 @@
 {
   "name": "Cider",
   "uuid": "com.sonw.cider",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "author": "Sonw",
   "repo": "https://github.com/AzureSonw/flexbar-plugin-cider",
   "entry": "backend/plugin.cjs",
-  "description": "Control Cider via FlexBar.",
+  "description": "Control Cider via FlexBar. On macOS, you may need to download the matching Apple Silicon or Intel package manually from GitHub Releases.",
   "sdk": {
     "version": "1.0.0"
   },
