@@ -4,7 +4,7 @@ Control Cider from FlexDesigner and Flexbar on Windows 11.
 
 中文说明：[README.zh-CN.md](README.zh-CN.md)
 
-Release: `1.0.0`.
+Release: `1.1.0`.
 
 - Previous, Now Playing, Play/Pause, and Next.
 - Native Volume slider for Cider playback volume (0–100%).

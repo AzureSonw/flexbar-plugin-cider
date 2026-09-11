@@ -1,7 +1,7 @@
 {
   "name": "Cider",
   "uuid": "com.sonw.cider",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Sonw",
   "entry": "backend/plugin.cjs",
   "description": "Control Cider via FlexBar.",
