@@ -7,6 +7,7 @@ English documentation: [README.md](README.md)
 ## 功能
 
 - 上一首、播放/暂停、下一首。
+- 原生 Volume 滑块，控制 Cider 自身的播放音量（0–100%）。
 - Now Playing 按键显示专辑封面、歌曲名和歌手。
 - 点击 Now Playing 按键的任意位置（包括封面）可切换播放状态。
 - 使用电脑上的系统字体绘制中文、日文、韩文和带重音字符的文本，并保持封面比例。
@@ -21,7 +22,7 @@ English documentation: [README.md](README.md)
 4. 将 token 填入 **Cider API Token**。
 5. 点击 **TEST CONNECTION**。成功后会显示 **Connected to Cider**。
 6. 点击 **SAVE SETTINGS**。保存的配置会立即生效。
-7. 从 FlexDesigner 的按键库将四个 Cider 按键添加到布局中。
+7. 从 FlexDesigner 的按键库添加 Cider 按键，并按需添加 **Volume** 音量滑块。
 
 插件连接到 `http://127.0.0.1:10767/api/v1`，使用 `apptoken` 请求头鉴权。
 连接测试调用 `GET /playback/active`，所有成功的 HTTP 状态码（包括 204）都会视为成功。
@@ -34,6 +35,10 @@ FlexDesigner 将 token 保存为插件应用配置中的 `ciderToken`。插件�
 ## 使用与故障排查
 
 保持 Cider 运行并启用本地 API。Now Playing 每三秒刷新一次。
+
+原生 **Volume** 滑块加载时会读取 Cider 当前音量，之后每三秒检查一次 Cider 内的音量变化。
+拖动更新以 75 毫秒间隔合并，保留最新值；本地音量调整完成后再恢复外部同步。
+音量控制继续使用应用设置中保存的个人 token。
 
 如果显示 **Set Cider Token**，请配置并保存 token；如果连接测试失败，请确认 Cider 正在运行、本地 API 已启用且 token 正确。若个别字符缺字，请在 Windows 中安装对应语言的字体。
 
@@ -61,7 +66,7 @@ Rollup 会从 `src/` 重新生成 `com.sonw.cider.plugin/backend/`，并打包 J
 - `src/plugin.js`：SDK 事件、配置更新、轮询、绘制和按键动作。
 - `src/musicControl.js`：Cider 请求与封面获取。
 - `src/canvasRenderer.js`：Now Playing 绘制器。
-- `com.sonw.cider.plugin/manifest.json`：插件身份、四个按键和配置页面。
+- `com.sonw.cider.plugin/manifest.json`：插件身份、四个普通按键、原生 Volume 滑块和配置页面。
 - `com.sonw.cider.plugin/ui/global_config.vue`：应用设置页面。
 - `rollup.config.mjs`：干净构建与原生资源打包。
 

@@ -7,6 +7,7 @@ Control Cider from FlexDesigner and Flexbar on Windows 11.
 Release: `1.0.0`.
 
 - Previous, Now Playing, Play/Pause, and Next.
+- Native Volume slider for Cider playback volume (0–100%).
 - Now Playing shows album artwork, title, and artist.
 - Tap anywhere on Now Playing, including its cover, to toggle playback.
 - Unicode text is rendered on the computer with system fonts.
@@ -21,7 +22,7 @@ Plugin ID: `com.sonw.cider`. Author: Sonw.
 4. Enter the token in **Cider API Token**.
 5. Click **TEST CONNECTION**. A successful test shows **Connected to Cider**.
 6. Click **SAVE SETTINGS**. Saved changes take effect immediately.
-7. Add the four Cider keys from FlexDesigner's key library to your layout.
+7. Add the Cider keys from FlexDesigner's key library to your layout, including **Volume** if desired.
 
 The plugin connects to `http://127.0.0.1:10767/api/v1` using the `apptoken` header.
 The test uses `GET /playback/active` and accepts all successful HTTP responses, including 204.
@@ -39,6 +40,11 @@ Next 70, Previous 90. A separate layout import is not required.
 Keep Cider running with its RPC service available. Now Playing refreshes every three seconds.
 Artwork preserves its aspect ratio inside the existing cover area.
 Long titles and artist names are shortened with an ellipsis without splitting Unicode graphemes.
+
+The native **Volume** slider controls Cider's own playback volume. It reads the current
+volume when loaded and checks for changes in Cider every three seconds. Drag updates
+are combined at 75 ms intervals, keeping the latest value; incoming synchronization
+waits until the local change finishes. Each user keeps using their own saved token.
 
 If the display says **Set Cider Token**, configure and save the token.
 If connection testing fails, check that Cider is running, the local API is enabled,
@@ -73,7 +79,7 @@ Do not add local configuration, logs, credentials, or development files to that 
 - `src/plugin.js`: SDK events, configuration updates, polling, drawing, and button actions.
 - `src/musicControl.js`: Cider requests and artwork retrieval.
 - `src/canvasRenderer.js`: focused Now Playing renderer.
-- `com.sonw.cider.plugin/manifest.json`: plugin identity, four keys, and `configPage: "global_config"`.
+- `com.sonw.cider.plugin/manifest.json`: plugin identity, four buttons, the native Volume slider, and `configPage: "global_config"`.
 - `com.sonw.cider.plugin/ui/global_config.vue`: application settings.
 - `rollup.config.mjs`: clean runtime build and native asset packaging.
 

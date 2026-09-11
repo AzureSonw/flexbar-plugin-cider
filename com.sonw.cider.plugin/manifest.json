@@ -115,6 +115,27 @@
         "data": {
           "name": "previous"
         }
+      },
+      {
+        "title": "Volume",
+        "cid": "com.sonw.cider.volume",
+        "config": {
+          "keyType": "slider",
+          "platform": ["windows"]
+        },
+        "style": {
+          "icon": "mdi mdi-volume-high",
+          "width": 300,
+          "slider": {
+            "color": "#ffffff",
+            "width": 220,
+            "format": "%0.0f %%",
+            "min": 0,
+            "max": 100,
+            "decimals": 0
+          }
+        },
+        "data": {}
       }
     ]
   },

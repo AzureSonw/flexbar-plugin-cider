@@ -6,12 +6,13 @@ export function setCiderToken(value) {
   ciderToken = typeof value === "string" ? value : ""
 }
 
-async function request(endpoint, method, token) {
+async function request(endpoint, method, token, body) {
   if (!token) return null
   try {
     return await fetch(`${API_BASE}${endpoint}`, {
       method,
-      headers: { apptoken: token },
+      headers: { apptoken: token, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(4000),
     })
   } catch {
@@ -89,4 +90,21 @@ export async function nextTrack() {
 
 export async function previousTrack() {
   return (await request("/playback/previous", "POST", ciderToken))?.ok === true
+}
+
+function normalizeVolume(value) {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null
+  const volume = Number(value)
+  return Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : null
+}
+
+export async function getVolume() {
+  const data = await ciderRequest("/playback/volume")
+  return normalizeVolume(data !== null && typeof data === "object" ? data.volume : data)
+}
+
+export async function setVolume(value) {
+  const volume = normalizeVolume(value)
+  if (volume === null) return false
+  return (await request("/playback/volume", "POST", ciderToken, { volume }))?.ok === true
 }
