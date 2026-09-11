@@ -4,7 +4,7 @@ Control Cider from FlexDesigner and Flexbar on Windows 11.
 
 中文说明：[README.zh-CN.md](README.zh-CN.md)
 
-Release: `1.2.0`.
+Release: `1.2.1`.
 
 - Previous, Now Playing, Play/Pause, and Next.
 - Native Volume slider for Cider playback volume (0–100%).
@@ -73,12 +73,19 @@ If connection testing fails, check that Cider is running, the local API is enabl
 and the token is correct. Save the token after a successful test.
 If glyphs are missing, check that Windows has fonts for the relevant language installed.
 
+Version 1.2.1 fixes adjacent keys receiving a stale Now Playing image after a layout
+re-upload. FlexDesigner 2.2.3 reassigns numeric key UIDs without sending a removal
+event. Each load now replaces that device's active keys and invalidates obsolete
+renders. Missing, inconsistent, or non-integer widths are rejected, and very narrow
+keys shrink the cover and omit text that cannot fit.
+
 ## Build from source
 
 Build on **Windows x64 using Node.js 20.20.2** and npm:
 
 ```sh
 npm ci
+npm test
 npm run build
 npm run plugin:validate
 npm run plugin:pack

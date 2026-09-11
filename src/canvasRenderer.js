@@ -12,15 +12,23 @@ function fitText(context, value, maxWidth) {
 }
 
 export async function renderNowPlaying(track, key) {
-  const width = Math.max(60, Math.round(Number(key.width || key.style?.width) || 480))
+  const width = Number(key.width ?? key.style?.width)
+  // Never invent or round up a drawing allocation. Runtime and style widths
+  // agree in FlexDesigner; skip an inconsistent snapshot instead of guessing.
+  if (!Number.isSafeInteger(width) || width <= 0 ||
+      (key.style?.width != null && Number(key.style.width) !== width)) {
+    throw new RangeError("Invalid Now Playing key width.")
+  }
   const canvas = new Canvas(width, 60)
   canvas.gpu = false
   const context = canvas.getContext("2d")
   context.fillStyle = key.style?.bgColor || "#000000"
   context.fillRect(0, 0, width, 60)
 
-  const coverSize = Math.min(60, Number(key.style?.iconSize) || 42)
-  const horizontalPadding = 8
+  const horizontalPadding = Math.min(8, Math.floor(width / 4))
+  const requestedCoverSize = Number(key.style?.iconSize)
+  const coverSize = Math.min(60, width - 2 * horizontalPadding,
+    Number.isFinite(requestedCoverSize) && requestedCoverSize > 0 ? requestedCoverSize : 42)
   const textGap = 10
   const coverX = horizontalPadding
   const coverY = (60 - coverSize) / 2
@@ -40,11 +48,13 @@ export async function renderNowPlaying(track, key) {
     context.font = `24px ${FONT_STACK}`
     context.textAlign = "center"
     context.textBaseline = "middle"
-    context.fillText("♪", coverX + coverSize / 2, 30)
+    if (coverSize >= context.measureText("♪").width) {
+      context.fillText("♪", coverX + coverSize / 2, 30)
+    }
   }
 
-  const textLeft = coverX + coverSize + textGap
   const textRight = width - horizontalPadding
+  const textLeft = Math.min(textRight, coverX + coverSize + textGap)
   const textWidth = Math.max(0, textRight - textLeft)
   const textX = textLeft + textWidth / 2
   const fontSize = Math.min(24, Math.max(12, Number(key.style?.fontSize) || 24))
@@ -52,8 +62,8 @@ export async function renderNowPlaying(track, key) {
   context.textBaseline = "middle"
   context.fillStyle = key.style?.fgColor || "#ffffff"
   context.font = `${fontSize}px ${FONT_STACK}`
-  context.fillText(fitText(context, track.title, textWidth), textX, track.artist ? 19 : 30)
-  if (track.artist) {
+  if (textWidth > 0) context.fillText(fitText(context, track.title, textWidth), textX, track.artist ? 19 : 30)
+  if (track.artist && textWidth > 0) {
     context.fillStyle = "#bdbdbd"
     context.font = `${Math.max(11, fontSize - 4)}px ${FONT_STACK}`
     context.fillText(fitText(context, track.artist, textWidth), textX, 44)

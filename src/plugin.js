@@ -122,6 +122,14 @@ function changeVolume(volume) {
 }
 
 plugin.on("plugin.alive", async ({ serialNumber, keys }) => {
+  // FlexDesigner reuses numeric UIDs on layout upload without sending plugin.dead.
+  // Replace this device's snapshot before any asynchronous render can resume.
+  for (const [id, entry] of activeKeys) {
+    if (entry.serialNumber === serialNumber) activeKeys.delete(id)
+  }
+  for (const [id, entry] of activeVolumeKeys) {
+    if (entry.serialNumber === serialNumber) activeVolumeKeys.delete(id)
+  }
   for (const key of keys) {
     if (key.cid === "com.sonw.cider.nowPlaying") {
       activeKeys.set(keyId(serialNumber, key), { serialNumber, key })
