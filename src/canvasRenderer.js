@@ -80,10 +80,10 @@ export async function renderNowPlaying(track, key) {
   if (timelineWidth > 0 && Number.isFinite(progress?.currentTime) && Number.isFinite(progress?.duration) && progress.duration > 0) {
     const played = Math.max(0, Math.min(1, progress.currentTime / progress.duration))
     context.fillStyle = "#404040"
-    context.fillRect(timelineX, 50, timelineWidth, 2)
+    context.fillRect(timelineX, 50, timelineWidth, 3)
     if (played > 0) {
       context.fillStyle = "#ffffff"
-      context.fillRect(timelineX, 50, timelineWidth * played, 2)
+      context.fillRect(timelineX, 50, timelineWidth * played, 3)
     }
   }
   return canvas.toDataURL("image/png")

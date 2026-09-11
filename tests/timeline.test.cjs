@@ -83,9 +83,9 @@ test('timeline pixels follow the real cover and runtime width at every requested
           if (relative + 1 <= played) assert.equal(row[x * 4], 255)
           if (relative >= played) assert.equal(row[x * 4], 64)
         }
-        assert.equal(context.getImageData(start, 51, 1, 1).data[3], 255)
-        assert.deepEqual([...context.getImageData(width - 45, 50, 45, 2).data].filter((_, i) => i % 4 !== 3), Array(270).fill(0))
-        assert.deepEqual([...context.getImageData(start, 52, barWidth, 1).data].filter((_, i) => i % 4 !== 3), Array(barWidth * 3).fill(0))
+        assert.deepEqual(context.getImageData(start, 52, barWidth, 1).data, context.getImageData(start, 50, barWidth, 1).data)
+        assert.deepEqual([...context.getImageData(width - 45, 50, 45, 3).data].filter((_, i) => i % 4 !== 3), Array(405).fill(0))
+        assert.deepEqual([...context.getImageData(start, 53, barWidth, 1).data].filter((_, i) => i % 4 !== 3), Array(barWidth * 3).fill(0))
       } else assert.equal(trackPixels.length, 0, 'insufficient width must hide the timeline')
     }
   }
@@ -110,7 +110,7 @@ test('timeline geometry uses smaller saved cover sizes and invalid progress neve
   for (const [iconSize, start, center] of [[24,86,257],[42,104,266],[60,104,275]]) {
     rects.length = text.length = 0
     await draw({ title:'Title',artist:'Artist',progress:{ currentTime:50,duration:100 } }, { width:480, style:{ width:480,iconSize } })
-    assert.deepEqual(rects.filter(r => r.y === 50), [{x:start,y:50,w:435-start,h:2,color:'#404040'}, {x:start,y:50,w:(435-start)/2,h:2,color:'#ffffff'}])
+    assert.deepEqual(rects.filter(r => r.y === 50), [{x:start,y:50,w:435-start,h:3,color:'#404040'}, {x:start,y:50,w:(435-start)/2,h:3,color:'#ffffff'}])
     assert.deepEqual(text.filter(t => t.value !== '♪').map(t => [t.x,t.y,t.align]), [[center,15,'center'],[center,34,'center']])
   }
   for (const progress of [null, {}, {currentTime:NaN,duration:100}, {currentTime:Infinity,duration:100}, {currentTime:1,duration:Infinity}, {currentTime:1,duration:0}]) {
