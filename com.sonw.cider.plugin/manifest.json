@@ -1,7 +1,7 @@
 {
   "name": "Cider",
   "uuid": "com.sonw.cider",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Sonw",
   "entry": "backend/plugin.cjs",
   "description": "Control Cider via FlexBar.",
@@ -125,10 +125,12 @@
         },
         "style": {
           "icon": "mdi mdi-volume-high",
+          "iconSize": 28,
+          "showIcon": true,
           "width": 300,
           "slider": {
             "color": "#ffffff",
-            "width": 220,
+            "width": 230,
             "format": "%0.0f %%",
             "min": 0,
             "max": 100,

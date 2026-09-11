@@ -20,7 +20,9 @@ export async function renderNowPlaying(track, key) {
   context.fillRect(0, 0, width, 60)
 
   const coverSize = Math.min(60, Number(key.style?.iconSize) || 42)
-  const coverX = Math.max(0, width * 0.12 - coverSize / 2)
+  const horizontalPadding = 8
+  const textGap = 10
+  const coverX = horizontalPadding
   const coverY = (60 - coverSize) / 2
   let artwork
   if (track.artwork) {
@@ -41,8 +43,10 @@ export async function renderNowPlaying(track, key) {
     context.fillText("♪", coverX + coverSize / 2, 30)
   }
 
-  const textX = width * 0.72
-  const textWidth = Math.max(0, 2 * Math.min(textX - coverX - coverSize - 10, width - textX - 6))
+  const textLeft = coverX + coverSize + textGap
+  const textRight = width - horizontalPadding
+  const textWidth = Math.max(0, textRight - textLeft)
+  const textX = textLeft + textWidth / 2
   const fontSize = Math.min(24, Math.max(12, Number(key.style?.fontSize) || 24))
   context.textAlign = "center"
   context.textBaseline = "middle"

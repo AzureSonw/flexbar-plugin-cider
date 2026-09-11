@@ -4,7 +4,7 @@ Control Cider from FlexDesigner and Flexbar on Windows 11.
 
 中文说明：[README.zh-CN.md](README.zh-CN.md)
 
-Release: `1.1.0`.
+Release: `1.2.0`.
 
 - Previous, Now Playing, Play/Pause, and Next.
 - Native Volume slider for Cider playback volume (0–100%).
@@ -40,6 +40,28 @@ Next 70, Previous 90. A separate layout import is not required.
 Keep Cider running with its RPC service available. Now Playing refreshes every three seconds.
 Artwork preserves its aspect ratio inside the existing cover area.
 Long titles and artist names are shortened with an ellipsis without splitting Unicode graphemes.
+
+Now Playing uses the width received when the key loads. The cover starts 8 pixels from
+the left edge, followed by a 10-pixel gap; title and artist share all remaining space
+up to the 8-pixel right margin. In FlexDesigner 2.2.3, the observed Now Playing load
+event contains matching `key.width` and `key.style.width`; the renderer keeps the
+runtime `key.width` first, with `style.width` as a fallback. Apply width edits and
+upload the layout so FlexDesigner reloads the keys. The SDK has no documented normal-key
+resize event; the three-second music refresh reuses the last loaded dimensions.
+
+Volume uses a native slider with a separate, fixed track width. In the observed 2.2.3
+load event it receives `key.width` but no `style`; `setSlider` updates its value, and
+the SDK documents no native-track resize API. Widening the outer key does not
+automatically grow the track. New Volume keys default to a 300-pixel outer width,
+a 230-pixel track, and a visible 28-pixel icon. The 70-pixel reserve leaves a
+50-pixel icon area plus the host's 20-pixel track inset; the native percentage format
+remains unchanged. Existing keys keep their saved styles.
+
+For other Volume sizes, adjust **Background → Width** and **Foreground → Slider Width**
+in FlexDesigner, then apply and upload. With these icon defaults, use a track width
+of `outer width - 70` and an outer width of at least 250 pixels: the 2.2.3 slider editor
+has a 180-pixel track minimum, so a 220-pixel key cannot retain the same icon clearance.
+This is a manual sizing fallback, not automatic responsive resizing.
 
 The native **Volume** slider controls Cider's own playback volume. It reads the current
 volume when loaded and checks for changes in Cider every three seconds. Drag updates
