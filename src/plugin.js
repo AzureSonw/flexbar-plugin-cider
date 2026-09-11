@@ -1,5 +1,5 @@
 import { plugin, logger } from "@eniac/flexdesigner"
-import { setCiderToken, testConnection, getTrackInfo, togglePlayPause, nextTrack, previousTrack, getVolume, setVolume, getListeningMode, setListeningMode } from "./musicControl"
+import { setCiderToken, testConnection, getTrackInfo, togglePlayPause, nextTrack, previousTrack, getVolume, setVolume, getListeningMode, setListeningMode, getPlaybackProgress } from "./musicControl"
 import { renderNowPlaying } from "./canvasRenderer"
 
 const activeKeys = new Map()
@@ -28,6 +28,10 @@ let configRevision = 0
 let refreshPromise
 let refreshAgain = false
 let renderErrorReported = false
+let nowPlayingRevision = 0
+let cachedNowPlaying = null
+let cachedProgress = null
+let metadataRefreshAt = 0
 let volumeRefreshPromise
 let volumeWritePromise
 let pendingVolume = null
@@ -41,6 +45,9 @@ function keyId(serialNumber, key) {
 
 function applyConfig(config) {
   configRevision++
+  cachedNowPlaying = null
+  cachedProgress = null
+  metadataRefreshAt = 0
   setCiderToken(config?.ciderToken)
   listeningRevision++
   const token = typeof config?.ciderToken === "string" ? config.ciderToken : ""
@@ -64,27 +71,52 @@ async function loadConfig() {
   }
 }
 
-async function refreshNowPlaying() {
-  if (refreshPromise) {
+async function refreshNowPlaying(refreshMetadata = true) {
+  if (refreshMetadata) {
+    nowPlayingRevision++
     refreshAgain = true
-    return refreshPromise
   }
+  // Timer ticks never queue extra work behind a slow API, image, or device.
+  if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     do {
+      const forceMetadata = refreshAgain
       refreshAgain = false
       if (!activeKeys.size) break
       const revision = configRevision
-      const track = await getTrackInfo()
-      if (revision !== configRevision) continue
-      for (const [id, entry] of activeKeys) {
+      const displayRevision = nowPlayingRevision
+      const entries = [...activeKeys]
+      const isCurrent = () => revision === configRevision && displayRevision === nowPlayingRevision
+      const progress = await getPlaybackProgress()
+      if (!isCurrent()) continue
+      const trackChanged = progress && (
+        (progress.trackId && progress.trackId !== cachedNowPlaying?.trackId) ||
+        (cachedProgress && (progress.duration !== cachedProgress.duration || progress.currentTime < cachedProgress.currentTime))
+      )
+      if (forceMetadata || !cachedNowPlaying || Date.now() >= metadataRefreshAt || trackChanged || (cachedProgress && !progress)) {
+        const metadata = await getTrackInfo()
+        if (!isCurrent()) continue
+        cachedNowPlaying = metadata
+        metadataRefreshAt = Date.now() + 3000
+      }
+      cachedProgress = progress
+      const mismatchedTrack = progress?.trackId && cachedNowPlaying.trackId && progress.trackId !== cachedNowPlaying.trackId
+      // A track can change between v2 timing and v1 metadata requests.
+      if (mismatchedTrack) metadataRefreshAt = 0
+      const track = { ...cachedNowPlaying, progress: cachedNowPlaying.isRunning === false || mismatchedTrack ? null : progress }
+      const frame = JSON.stringify([track.title, track.artist, track.artwork, track.progress?.currentTime, track.progress?.duration])
+      for (const [id, entry] of entries) {
+        if (!isCurrent()) break
+        if (activeKeys.get(id) !== entry || (!forceMetadata && entry.frame === frame)) continue
         const { serialNumber, key } = entry
         const imageData = await renderNowPlaying(track, key)
-        if (revision !== configRevision || activeKeys.get(id) !== entry) continue
+        if (!isCurrent() || activeKeys.get(id) !== entry) continue
         const drawKey = {
           ...key,
           style: { ...key.style, showImage: true, showIcon: false, showTitle: false },
         }
-        await plugin.draw(serialNumber, drawKey, "base64", imageData)
+        const result = await plugin.draw(serialNumber, drawKey, "base64", imageData)
+        if (result?.status !== "error" && isCurrent() && activeKeys.get(id) === entry) entry.frame = frame
       }
       renderErrorReported = false
     } while (refreshAgain)
@@ -304,10 +336,10 @@ plugin.on("plugin.data", async ({ data }) => {
 })
 
 setInterval(() => {
-  void refreshNowPlaying()
   void refreshVolume()
   void refreshListeningMode()
 }, 3000).unref()
+setInterval(() => { void refreshNowPlaying(false) }, 1000).unref()
 plugin.start()
 // This SDK can read config only after its WebSocket connection opens.
 plugin.transport.ws.once("open", loadConfig)

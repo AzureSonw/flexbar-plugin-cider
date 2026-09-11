@@ -67,11 +67,24 @@ export async function renderNowPlaying(track, key) {
   context.textBaseline = "middle"
   context.fillStyle = key.style?.fgColor || "#ffffff"
   context.font = `${fontSize}px ${FONT_STACK}`
-  if (textWidth > 0) context.fillText(fitText(context, track.title, textWidth), textX, track.artist ? 19 : 30)
+  if (textWidth > 0) context.fillText(fitText(context, track.title, textWidth), textX, track.artist ? 15 : 26)
   if (track.artist && textWidth > 0) {
     context.fillStyle = "#bdbdbd"
     context.font = `${Math.max(11, fontSize - 4)}px ${FONT_STACK}`
-    context.fillText(fitText(context, track.artist, textWidth), textX, 44)
+    context.fillText(fitText(context, track.artist, textWidth), textX, 34)
+  }
+
+  const timelineX = coverX + coverSize + 45
+  const timelineWidth = Math.max(0, width - 45 - timelineX)
+  const progress = track.progress
+  if (timelineWidth > 0 && Number.isFinite(progress?.currentTime) && Number.isFinite(progress?.duration) && progress.duration > 0) {
+    const played = Math.max(0, Math.min(1, progress.currentTime / progress.duration))
+    context.fillStyle = "#404040"
+    context.fillRect(timelineX, 50, timelineWidth, 3)
+    if (played > 0) {
+      context.fillStyle = "#ffffff"
+      context.fillRect(timelineX, 50, timelineWidth * played, 3)
+    }
   }
   return canvas.toDataURL("image/png")
 }

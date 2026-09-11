@@ -97,12 +97,17 @@ function harness() {
   }
   const params = { plugin, logger: { warn() {} }, setCiderToken() {}, testConnection: async () => true,
     getTrackInfo: async () => ({ title: 'test' }), renderNowPlaying: async () => 'data:image/png;base64,fixture',
+    getPlaybackProgress: async () => null,
     togglePlayPause: async () => { playback.push('playpause'); return true },
     nextTrack: async () => { playback.push('next'); return true },
     previousTrack: async () => { playback.push('previous'); return true },
     getVolume: async () => 0.72, setVolume: async () => true,
     getListeningMode: () => get(), setListeningMode: mode => { writes.push(mode); return patch(mode) },
-    setInterval(callback, ms) { assert.equal(ms, 3000); assert.equal(timer, undefined); timer = callback; return { unref() {} } },
+    setInterval(callback, ms) {
+      assert.ok([1000, 3000].includes(ms))
+      if (ms === 3000) { assert.equal(timer, undefined); timer = callback }
+      return { unref() {} }
+    },
   }
   new Function(...Object.keys(params), source('plugin.js'))(...Object.values(params))
   return { handlers, draws, sliders, writes, playback,
