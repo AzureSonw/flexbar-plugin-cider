@@ -10,6 +10,7 @@ Release: `1.3.1`.
 - Native Volume slider for Cider playback volume (0–100%).
 - Cider 4.0 Listening Mode: one cycle button and three direct mode buttons.
 - Now Playing shows album artwork, title, and artist.
+- Now Playing includes a thin, display-only playback timeline below the artist.
 - Tap anywhere on Now Playing, including its cover, to toggle playback.
 - Unicode text is rendered on the computer with system fonts.
 
@@ -50,19 +51,29 @@ Next 70, Previous 90. A separate layout import is not required.
 
 ## Usage and troubleshooting
 
-Keep Cider running with its RPC service available. Now Playing refreshes every three seconds.
+Keep Cider running with its RPC service available. Now Playing polls Cider v2 playback
+timing about once per second and reuses cached metadata/artwork between metadata
+refreshes (about every three seconds, or on a track change).
 Artwork fills a 58×58 square at (1,1), surrounded by a 1-pixel black border on the 60-pixel canvas.
 Non-square covers are center-cropped without stretching; narrow keys shrink the cover safely.
 Long titles and artist names are shortened with an ellipsis without splitting Unicode graphemes.
 
 Now Playing uses the width received when the key loads. Title and artist retain the
-same centered text allocation as 1.2.1, independent of the larger cover. A small saved
+same horizontal centered text allocation as 1.2.1, independent of the larger cover. A small saved
 icon size can limit the cover so it does not enter the existing text area.
 In FlexDesigner 2.2.3, the observed Now Playing load
 event contains matching `key.width` and `key.style.width`; the renderer keeps the
 runtime `key.width` first, with `style.width` as a fallback. Apply width edits and
 upload the layout so FlexDesigner reloads the keys. The SDK has no documented normal-key
-resize event; the three-second music refresh reuses the last loaded dimensions.
+resize event; subsequent redraws reuse the last loaded dimensions.
+
+The timeline is 2 pixels high at y=50, with a dark-gray track and a white played
+section. It starts 30 pixels after the actual cover edge and ends 30 pixels before
+the canvas edge, so its length follows the loaded key width. Title/artist use
+centered vertical anchors y=15/y=34 (y=26 for a title without an artist).
+Invalid timing or insufficient width hides the timeline. Paused snapshots do not
+advance locally, and identical frames are skipped. Tapping any part of Now Playing
+still toggles playback; the timeline cannot seek. No new key or native slider is added.
 
 Volume uses a native slider with a separate, fixed track width. In the observed 2.2.3
 load event it receives `key.width` but no `style`; `setSlider` updates its value, and

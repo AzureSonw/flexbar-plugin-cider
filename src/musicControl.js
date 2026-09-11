@@ -79,6 +79,7 @@ export async function getTrackInfo() {
     artist: info.artistName || info.artist || info.attributes?.artistName || "",
     artwork: await convertArtworkToBase64(artworkUrl),
     isRunning: true,
+    trackId: playbackTrackId(info),
   }
 }
 
@@ -92,6 +93,38 @@ export async function nextTrack() {
 
 export async function previousTrack() {
   return (await request("/playback/previous", "POST", ciderToken))?.ok === true
+}
+
+function playbackTrackId(info) {
+  if (!info || typeof info !== "object") return null
+  const attributes = info.attributes ?? info
+  const id = info.playParams?.id ?? info.id ?? attributes.playParams?.id
+  if (typeof id === "string" && id) return id
+  // Some streams have no catalogue ID; use the same identity in v1 and v2.
+  const title = attributes.name ?? attributes.title
+  return typeof title === "string" && title
+    ? JSON.stringify([title, attributes.artistName ?? attributes.artist ?? "", attributes.albumName ?? ""])
+    : null
+}
+
+export async function getPlaybackProgress() {
+  const response = await request("/playback", "GET", ciderToken, undefined, API_V2_BASE)
+  if (!response?.ok) return null
+  try {
+    const body = await response.json()
+    const data = body?.data ?? body
+    const currentTime = data?.time?.currentTime
+    const duration = data?.time?.duration
+    if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0 || data.nowPlaying === null) return null
+    return {
+      currentTime: Math.max(0, Math.min(duration, currentTime)),
+      duration,
+      state: typeof data.state === "string" ? data.state : "unknown",
+      trackId: playbackTrackId(data.nowPlaying),
+    }
+  } catch {
+    return null
+  }
 }
 
 function normalizeVolume(value) {

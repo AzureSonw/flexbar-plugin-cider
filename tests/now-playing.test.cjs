@@ -25,16 +25,16 @@ function harness(renderImage = render) {
     setSlider: async (serialNumber, key, value) => { sliders.push({ serialNumber, key, value }) },
   }
   const action = name => async () => { actions.push(name); return true }
-  const names = ['plugin', 'logger', 'setCiderToken', 'testConnection', 'getTrackInfo', 'togglePlayPause', 'nextTrack', 'previousTrack', 'getVolume', 'setVolume', 'renderNowPlaying', 'setInterval']
+  const names = ['plugin', 'logger', 'setCiderToken', 'testConnection', 'getTrackInfo', 'togglePlayPause', 'nextTrack', 'previousTrack', 'getVolume', 'setVolume', 'renderNowPlaying', 'setInterval', 'getPlaybackProgress']
   new Function(...names, readSource('plugin.js'))(plugin, { warn: msg => warnings.push(msg) }, () => {}, async () => true, async () => track,
     action('playpause'), action('next'), action('previous'), async () => 0.72, action('volume'), renderImage,
-    callback => { timer = callback; return { unref() {} } })
+    callback => { timer = callback; return { unref() {} } }, async () => null)
   return { handlers, draws, sliders, actions, warnings, tick: () => timer(),
     alive: (keys, serialNumber = 'device-a') => handlers['plugin.alive']({ serialNumber, keys }) }
 }
 const settle = async () => { for (let i = 0; i < 15; i++) await new Promise(resolve => setImmediate(resolve)) }
 
-test('near-full-height cover crops without stretching and keeps legacy text positions', async () => {
+test('near-full-height cover crops without stretching and keeps legacy horizontal text positions', async () => {
   const text = [], crops = []
   class Canvas extends NativeCanvas {
     getContext(type) {
@@ -63,7 +63,7 @@ test('near-full-height cover crops without stretching and keeps legacy text posi
     text.length = crops.length = 0
     const image = await loadImage(await renderCover({ title: '夜曲', artist: '周杰伦', artwork }, { width, style: { width, iconSize, bgColor: '#222222' } }))
     assert.deepEqual(text.map(({ value, x, y, align }) => ({ value, x, y, align })), [
-      { value: '夜曲', x: center, y: 19, align: 'center' }, { value: '周杰伦', x: center, y: 44, align: 'center' },
+      { value: '夜曲', x: center, y: 15, align: 'center' }, { value: '周杰伦', x: center, y: 34, align: 'center' },
     ])
     assert.match(text[0].font, /(?:^| )24px /); assert.match(text[1].font, /(?:^| )20px /)
     if (iconSize === 42) {
