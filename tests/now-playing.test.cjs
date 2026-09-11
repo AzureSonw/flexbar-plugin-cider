@@ -34,6 +34,51 @@ function harness(renderImage = render) {
 }
 const settle = async () => { for (let i = 0; i < 15; i++) await new Promise(resolve => setImmediate(resolve)) }
 
+test('near-full-height cover crops without stretching and keeps legacy text positions', async () => {
+  const text = [], crops = []
+  class Canvas extends NativeCanvas {
+    getContext(type) {
+      const context = super.getContext(type)
+      return new Proxy(context, {
+        set(target, name, value) { target[name] = value; return true },
+        get(target, name) {
+          if (name === 'fillText') return (value, x, y) => {
+            text.push({ value, x, y, align: target.textAlign, font: target.font, color: target.fillStyle })
+            return target.fillText(value, x, y)
+          }
+          if (name === 'drawImage') return (image, ...args) => { crops.push(args); return target.drawImage(image, ...args) }
+          const value = target[name]
+          return typeof value === 'function' ? value.bind(target) : value
+        },
+      })
+    }
+  }
+  const art = new NativeCanvas(160, 80); art.gpu = false
+  const context = art.getContext('2d')
+  context.fillStyle = '#ff0000'; context.fillRect(0, 0, 160, 80)
+  context.fillStyle = '#00cc88'; context.fillRect(40, 0, 80, 80)
+  const artwork = await art.toDataURL('png')
+  const renderCover = renderer(Canvas)
+  for (const [width, iconSize, center] of [[300, 42, 176], [480, 42, 266], [800, 42, 426], [480, 24, 257], [480, 60, 275]]) {
+    text.length = crops.length = 0
+    const image = await loadImage(await renderCover({ title: '夜曲', artist: '周杰伦', artwork }, { width, style: { width, iconSize, bgColor: '#222222' } }))
+    assert.deepEqual(text.map(({ value, x, y, align }) => ({ value, x, y, align })), [
+      { value: '夜曲', x: center, y: 19, align: 'center' }, { value: '周杰伦', x: center, y: 44, align: 'center' },
+    ])
+    assert.match(text[0].font, /(?:^| )24px /); assert.match(text[1].font, /(?:^| )20px /)
+    if (iconSize === 42) {
+      assert.deepEqual(crops, [[40, 0, 80, 80, 1, 1, 58, 58]])
+      const check = new NativeCanvas(width, 60); check.gpu = false
+      const cc = check.getContext('2d'); cc.drawImage(image, 0, 0)
+      for (const [x, y] of [[0,0], [30,0], [59,30], [30,59], [0,30]]) {
+        assert.deepEqual([...cc.getImageData(x, y, 1, 1).data], [0,0,0,255])
+      }
+      assert.deepEqual([...cc.getImageData(30,30,1,1).data], [0,204,136,255])
+    }
+  }
+})
+
+
 test('re-upload with a reused UID never paints the Previous key', async () => {
   const h = harness()
   await h.alive([key('nowPlaying', 1, 600), key('previous', 2)])
@@ -132,7 +177,7 @@ test('artwork and Unicode stay inside the bitmap, including extremely narrow key
         set(target, name, value) { target[name] = value; return true },
         get(target, name) {
           if (name === 'fillRect') return (x, y, width, height) => { operations.push({ x, y, width, height }); target.fillRect(x, y, width, height) }
-          if (name === 'drawImage') return (image, x, y, width, height) => { operations.push({ art: true, x, y, width, height }); target.drawImage(image, x, y, width, height) }
+          if (name === 'drawImage') return (image, ...args) => { const [x, y, width, height] = args.slice(-4); operations.push({ art: true, x, y, width, height }); target.drawImage(image, ...args) }
           if (name === 'fillText') return (text, x, y) => {
             const m = target.measureText(text)
             operations.push({ text, x: x - m.actualBoundingBoxLeft, y: y - m.actualBoundingBoxAscent, width: m.actualBoundingBoxLeft + m.actualBoundingBoxRight, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent })
@@ -160,7 +205,7 @@ test('artwork and Unicode stay inside the bitmap, including extremely narrow key
           assert.ok(o.x + o.width <= width && o.y + o.height <= 60, JSON.stringify({ width, o }))
         }
         if (width >= 300 && iconSize === 42 && art) {
-          assert.deepEqual(operations.find(o => o.art), { art: true, x: 8, y: 19.5, width: 42, height: 21 })
+          assert.deepEqual(operations.find(o => o.art), { art: true, x: 1, y: 1, width: 58, height: 58 })
           assert.ok(operations.filter(o => o.text).length === 2)
         }
       }

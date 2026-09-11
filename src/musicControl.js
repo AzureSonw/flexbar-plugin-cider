@@ -1,4 +1,6 @@
 const API_BASE = "http://127.0.0.1:10767/api/v1"
+const API_V2_BASE = "http://127.0.0.1:10767/api/v2"
+const LISTENING_MODES = ["off", "game", "antifatigue"]
 let ciderToken = ""
 let cachedArtwork = { url: "", data: "" }
 
@@ -6,10 +8,10 @@ export function setCiderToken(value) {
   ciderToken = typeof value === "string" ? value : ""
 }
 
-async function request(endpoint, method, token, body) {
+async function request(endpoint, method, token, body, base = API_BASE) {
   if (!token) return null
   try {
-    return await fetch(`${API_BASE}${endpoint}`, {
+    return await fetch(`${base}${endpoint}`, {
       method,
       headers: { apptoken: token, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -107,4 +109,31 @@ export async function setVolume(value) {
   const volume = normalizeVolume(value)
   if (volume === null) return false
   return (await request("/playback/volume", "POST", ciderToken, { volume }))?.ok === true
+}
+
+function listeningModeFromResponse(data) {
+  const mode = data?.data?.mode ?? data?.mode
+  return LISTENING_MODES.includes(mode) ? mode : null
+}
+
+export async function getListeningMode() {
+  const response = await request("/audio/listening-mode", "GET", ciderToken, undefined, API_V2_BASE)
+  if (!response?.ok) return null
+  try {
+    return listeningModeFromResponse(await response.json())
+  } catch {
+    return null
+  }
+}
+
+export async function setListeningMode(mode) {
+  if (!LISTENING_MODES.includes(mode)) return null
+  const response = await request("/audio/listening-mode", "PATCH", ciderToken, { mode }, API_V2_BASE)
+  if (!response?.ok) return null
+  try {
+    // Some Cider versions acknowledge the write without returning a mode.
+    return listeningModeFromResponse(await response.json()) ?? mode
+  } catch {
+    return mode
+  }
 }

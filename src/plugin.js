@@ -1,9 +1,29 @@
 import { plugin, logger } from "@eniac/flexdesigner"
-import { setCiderToken, testConnection, getTrackInfo, togglePlayPause, nextTrack, previousTrack, getVolume, setVolume } from "./musicControl"
+import { setCiderToken, testConnection, getTrackInfo, togglePlayPause, nextTrack, previousTrack, getVolume, setVolume, getListeningMode, setListeningMode } from "./musicControl"
 import { renderNowPlaying } from "./canvasRenderer"
 
 const activeKeys = new Map()
 const activeVolumeKeys = new Map()
+const activeListeningModeKeys = new Map()
+const listeningControls = new Map([
+  ["com.sonw.cider.listeningMode", null],
+  ["com.sonw.cider.listeningModeOff", "off"],
+  ["com.sonw.cider.listeningModeGaming", "game"],
+  ["com.sonw.cider.listeningModeUnwind", "antifatigue"],
+])
+const listeningVisuals = {
+  off: { title: "Off", icon: "mdi mdi-close-box-outline" },
+  game: { title: "Gaming", icon: "mdi mdi-gamepad-variant-outline" },
+  antifatigue: { title: "Unwind", icon: "mdi mdi-bed-king-outline" },
+}
+const listeningModeOrder = ["off", "game", "antifatigue"]
+let currentListeningMode = null
+let listeningToken = ""
+let listeningRevision = 0
+let listeningRefreshPromise
+let listeningRefreshAgain = false
+let listeningWriteQueue = Promise.resolve()
+let pendingListeningWrites = 0
 let configRevision = 0
 let refreshPromise
 let refreshAgain = false
@@ -22,6 +42,13 @@ function keyId(serialNumber, key) {
 function applyConfig(config) {
   configRevision++
   setCiderToken(config?.ciderToken)
+  listeningRevision++
+  const token = typeof config?.ciderToken === "string" ? config.ciderToken : ""
+  if (token !== listeningToken) {
+    listeningToken = token
+    currentListeningMode = null
+    for (const entry of activeListeningModeKeys.values()) entry.visualState = undefined
+  }
   volumeRevision++
   pendingVolume = null
   for (const entry of activeVolumeKeys.values()) entry.value = undefined
@@ -92,6 +119,91 @@ async function refreshVolume() {
   return volumeRefreshPromise
 }
 
+async function drawListeningMode() {
+  const revision = listeningRevision
+  for (const [id, entry] of activeListeningModeKeys) {
+    if (revision !== listeningRevision) break
+    if (activeListeningModeKeys.get(id) !== entry) continue
+    const directMode = listeningControls.get(entry.key.cid)
+    const mode = directMode ?? currentListeningMode ?? "off"
+    const active = directMode !== null && directMode === currentListeningMode
+    const visualState = `${mode}:${active}`
+    if (entry.visualState === visualState) continue
+    const visual = listeningVisuals[mode]
+    const drawKey = {
+      ...entry.key,
+      title: visual.title,
+      style: {
+        ...entry.key.style,
+        icon: visual.icon,
+        showImage: false,
+        showIcon: true,
+        showTitle: true,
+        bgColor: active ? "#244a66" : entry.key.style?.bgColor || "#000000",
+      },
+    }
+    try {
+      const result = await plugin.draw(entry.serialNumber, drawKey, "draw")
+      if (result?.status !== "error" && revision === listeningRevision && activeListeningModeKeys.get(id) === entry) {
+        entry.visualState = visualState
+      }
+    } catch {
+      // Retry disconnected keys on the next shared refresh.
+    }
+  }
+}
+
+async function refreshListeningMode() {
+  if (!activeListeningModeKeys.size) return
+  if (pendingListeningWrites) return drawListeningMode()
+  if (listeningRefreshPromise) {
+    listeningRefreshAgain = true
+    return listeningRefreshPromise
+  }
+  listeningRefreshPromise = (async () => {
+    do {
+      listeningRefreshAgain = false
+      if (!activeListeningModeKeys.size || pendingListeningWrites) break
+      const revision = listeningRevision
+      const mode = await getListeningMode()
+      if (revision !== listeningRevision) continue
+      if (mode !== null) currentListeningMode = mode
+      await drawListeningMode()
+    } while (listeningRefreshAgain)
+  })().catch(() => {
+    // A v2 failure must not interrupt playback, artwork, or Volume refreshes.
+  }).finally(() => {
+    listeningRefreshPromise = null
+  })
+  return listeningRefreshPromise
+}
+
+function changeListeningMode(directMode) {
+  const revision = configRevision
+  pendingListeningWrites++
+  listeningRevision++ // Invalidate a poll that started before this click.
+  const operation = listeningWriteQueue.then(async () => {
+    if (revision !== configRevision) return false
+    let target = directMode
+    if (target === null) {
+      const mode = await getListeningMode() ?? currentListeningMode ?? "off"
+      target = listeningModeOrder[(listeningModeOrder.indexOf(mode) + 1) % listeningModeOrder.length]
+    }
+    if (revision !== configRevision) return false
+    const mode = await setListeningMode(target)
+    if (mode === null || revision !== configRevision) return false
+    currentListeningMode = mode
+    listeningRevision++
+    await drawListeningMode()
+    return true
+  }).catch(() => false).finally(() => {
+    pendingListeningWrites--
+  })
+  // Serialize rapid presses so each cycle starts from the previous result.
+  listeningWriteQueue = operation
+  return operation
+}
+
 function changeVolume(volume) {
   pendingVolume = volume
   volumeRevision++
@@ -130,6 +242,9 @@ plugin.on("plugin.alive", async ({ serialNumber, keys }) => {
   for (const [id, entry] of activeVolumeKeys) {
     if (entry.serialNumber === serialNumber) activeVolumeKeys.delete(id)
   }
+  for (const [id, entry] of activeListeningModeKeys) {
+    if (entry.serialNumber === serialNumber) activeListeningModeKeys.delete(id)
+  }
   for (const key of keys) {
     if (key.cid === "com.sonw.cider.nowPlaying") {
       activeKeys.set(keyId(serialNumber, key), { serialNumber, key })
@@ -137,21 +252,25 @@ plugin.on("plugin.alive", async ({ serialNumber, keys }) => {
     if (key.cid === "com.sonw.cider.volume") {
       activeVolumeKeys.set(keyId(serialNumber, key), { serialNumber, key })
     }
+    if (listeningControls.has(key.cid)) {
+      activeListeningModeKeys.set(keyId(serialNumber, key), { serialNumber, key })
+    }
   }
   await loadConfig()
-  await Promise.all([refreshNowPlaying(), refreshVolume()])
+  await Promise.all([refreshNowPlaying(), refreshVolume(), refreshListeningMode()])
 })
 
 plugin.on("plugin.dead", ({ serialNumber, keys }) => {
   for (const key of keys) {
     activeKeys.delete(keyId(serialNumber, key))
     activeVolumeKeys.delete(keyId(serialNumber, key))
+    activeListeningModeKeys.delete(keyId(serialNumber, key))
   }
 })
 
 plugin.on("plugin.config.updated", async ({ config }) => {
   applyConfig(config)
-  await Promise.all([refreshNowPlaying(), refreshVolume()])
+  await Promise.all([refreshNowPlaying(), refreshVolume(), refreshListeningMode()])
 })
 
 plugin.on("ui.message", async (payload) => {
@@ -160,6 +279,10 @@ plugin.on("ui.message", async (payload) => {
 })
 
 plugin.on("plugin.data", async ({ data }) => {
+  if (listeningControls.has(data?.key?.cid)) {
+    const success = await changeListeningMode(listeningControls.get(data.key.cid))
+    return { status: success ? "success" : "error" }
+  }
   if (data?.key?.cid === "com.sonw.cider.volume") {
     const raw = data.value
     const value = typeof raw === "number" || (typeof raw === "string" && raw.trim()) ? Number(raw) : NaN
@@ -183,6 +306,7 @@ plugin.on("plugin.data", async ({ data }) => {
 setInterval(() => {
   void refreshNowPlaying()
   void refreshVolume()
+  void refreshListeningMode()
 }, 3000).unref()
 plugin.start()
 // This SDK can read config only after its WebSocket connection opens.

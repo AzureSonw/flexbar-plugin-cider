@@ -27,21 +27,28 @@ export async function renderNowPlaying(track, key) {
 
   const horizontalPadding = Math.min(8, Math.floor(width / 4))
   const requestedCoverSize = Number(key.style?.iconSize)
-  const coverSize = Math.min(60, width - 2 * horizontalPadding,
+  const layoutCoverSize = Math.min(60, width - 2 * horizontalPadding,
     Number.isFinite(requestedCoverSize) && requestedCoverSize > 0 ? requestedCoverSize : 42)
   const textGap = 10
-  const coverX = horizontalPadding
+  // Keep the v1.2.1 text allocation independent of the larger artwork.
+  const textRight = width - horizontalPadding
+  const textLeft = Math.min(textRight, horizontalPadding + layoutCoverSize + textGap)
+  const coverSize = Math.max(0, Math.min(58, width - 2, textLeft - 2))
+  const coverX = 1
   const coverY = (60 - coverSize) / 2
   let artwork
   if (track.artwork) {
     try { artwork = await loadImage(track.artwork) } catch { /* Keep text when artwork is unavailable. */ }
   }
-  if (artwork) {
-    const scale = Math.min(coverSize / artwork.width, coverSize / artwork.height)
-    const imageWidth = artwork.width * scale
-    const imageHeight = artwork.height * scale
-    context.drawImage(artwork, coverX + (coverSize - imageWidth) / 2, coverY + (coverSize - imageHeight) / 2, imageWidth, imageHeight)
-  } else {
+  if (coverSize > 0) {
+    context.fillStyle = "#000000"
+    context.fillRect(0, coverY - 1, coverSize + 2, coverSize + 2)
+  }
+  if (artwork && coverSize > 0) {
+    const cropSize = Math.min(artwork.width, artwork.height)
+    context.drawImage(artwork, (artwork.width - cropSize) / 2, (artwork.height - cropSize) / 2,
+      cropSize, cropSize, coverX, coverY, coverSize, coverSize)
+  } else if (coverSize > 0) {
     context.fillStyle = "#333333"
     context.fillRect(coverX, coverY, coverSize, coverSize)
     context.fillStyle = "#ffffff"
@@ -53,8 +60,6 @@ export async function renderNowPlaying(track, key) {
     }
   }
 
-  const textRight = width - horizontalPadding
-  const textLeft = Math.min(textRight, coverX + coverSize + textGap)
   const textWidth = Math.max(0, textRight - textLeft)
   const textX = textLeft + textWidth / 2
   const fontSize = Math.min(24, Math.max(12, Number(key.style?.fontSize) || 24))

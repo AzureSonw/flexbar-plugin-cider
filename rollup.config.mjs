@@ -45,6 +45,7 @@ export default {
         fs.mkdirSync(path.join(pluginRoot, "resources"), { recursive: true })
         this.addWatchFile(path.join(pluginRoot, "manifest.json"))
         this.addWatchFile(path.join(pluginRoot, "ui/global_config.vue"))
+        this.addWatchFile(path.join(root, "LICENSE"))
       },
       resolveId(id) {
         if (id.endsWith("/skia.node")) return { id: nativeModule, external: true }
@@ -53,6 +54,7 @@ export default {
         this.emitFile({ type: "asset", fileName: "skia.node", source: fs.readFileSync(nativeModule) })
         this.emitFile({ type: "asset", fileName: "package.json", source: '{ "type": "commonjs" }\n' })
         fs.writeFileSync(path.join(pluginRoot, "resources/THIRD_PARTY_LICENSES.txt"), thirdPartyNotices(this.getModuleIds()))
+        fs.copyFileSync(path.join(root, "LICENSE"), path.join(pluginRoot, "resources/LICENSE.txt"))
       },
     },
     json(),

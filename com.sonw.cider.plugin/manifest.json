@@ -1,8 +1,9 @@
 {
   "name": "Cider",
   "uuid": "com.sonw.cider",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "author": "Sonw",
+  "repo": "https://github.com/AzureSonw/flexbar-plugin-cider",
   "entry": "backend/plugin.cjs",
   "description": "Control Cider via FlexBar.",
   "sdk": {
@@ -15,6 +16,10 @@
     {
       "platform": "windows",
       "minimumVersion": "11"
+    },
+    {
+      "platform": "mac",
+      "minimumVersion": "15"
     }
   ],
   "device": [
@@ -36,7 +41,8 @@
           "keyType": "default",
           "clickable": true,
           "platform": [
-            "windows"
+            "windows",
+            "mac"
           ]
         },
         "style": {
@@ -66,7 +72,8 @@
           "keyType": "default",
           "clickable": true,
           "platform": [
-            "windows"
+            "windows",
+            "mac"
           ]
         },
         "style": {
@@ -85,7 +92,8 @@
           "keyType": "default",
           "clickable": true,
           "platform": [
-            "windows"
+            "windows",
+            "mac"
           ]
         },
         "style": {
@@ -104,7 +112,8 @@
           "keyType": "default",
           "clickable": true,
           "platform": [
-            "windows"
+            "windows",
+            "mac"
           ]
         },
         "style": {
@@ -117,11 +126,131 @@
         }
       },
       {
+        "title": "Listening Mode",
+        "cid": "com.sonw.cider.listeningMode",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": ["windows", "mac"]
+        },
+        "style": {
+          "icon": "mdi mdi-close-box-outline",
+          "width": 120,
+          "iconSize": 26,
+          "fontSize": 14,
+          "showIcon": true,
+          "showTitle": true,
+          "bgColor": "#000000",
+          "borderStyle": "none",
+          "iconPos": {
+            "X": 50,
+            "Y": 30
+          },
+          "titlePos": {
+            "X": 50,
+            "Y": 78
+          }
+        },
+        "data": {
+          "name": "listeningMode"
+        }
+      },
+      {
+        "title": "Listening Mode - Off",
+        "cid": "com.sonw.cider.listeningModeOff",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": ["windows", "mac"]
+        },
+        "style": {
+          "icon": "mdi mdi-close-box-outline",
+          "width": 120,
+          "iconSize": 26,
+          "fontSize": 14,
+          "showIcon": true,
+          "showTitle": true,
+          "bgColor": "#000000",
+          "borderStyle": "none",
+          "iconPos": {
+            "X": 50,
+            "Y": 30
+          },
+          "titlePos": {
+            "X": 50,
+            "Y": 78
+          }
+        },
+        "data": {
+          "name": "listeningModeOff"
+        }
+      },
+      {
+        "title": "Listening Mode - Gaming",
+        "cid": "com.sonw.cider.listeningModeGaming",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": ["windows", "mac"]
+        },
+        "style": {
+          "icon": "mdi mdi-gamepad-variant-outline",
+          "width": 120,
+          "iconSize": 26,
+          "fontSize": 14,
+          "showIcon": true,
+          "showTitle": true,
+          "bgColor": "#000000",
+          "borderStyle": "none",
+          "iconPos": {
+            "X": 50,
+            "Y": 30
+          },
+          "titlePos": {
+            "X": 50,
+            "Y": 78
+          }
+        },
+        "data": {
+          "name": "listeningModeGaming"
+        }
+      },
+      {
+        "title": "Listening Mode - Unwind",
+        "cid": "com.sonw.cider.listeningModeUnwind",
+        "config": {
+          "keyType": "default",
+          "clickable": true,
+          "platform": ["windows", "mac"]
+        },
+        "style": {
+          "icon": "mdi mdi-bed-king-outline",
+          "width": 120,
+          "iconSize": 26,
+          "fontSize": 14,
+          "showIcon": true,
+          "showTitle": true,
+          "bgColor": "#000000",
+          "borderStyle": "none",
+          "iconPos": {
+            "X": 50,
+            "Y": 30
+          },
+          "titlePos": {
+            "X": 50,
+            "Y": 78
+          }
+        },
+        "data": {
+          "name": "listeningModeUnwind"
+        }
+      },
+      {
         "title": "Volume",
         "cid": "com.sonw.cider.volume",
         "config": {
           "keyType": "slider",
-          "platform": ["windows"]
+          "platform": ["windows", "mac"]
         },
         "style": {
           "icon": "mdi mdi-volume-high",
