@@ -1,131 +1,92 @@
-# Cider for Flexbar
+# 🎵 Cider for Flexbar
 
-Control Cider from FlexDesigner and Flexbar on Windows 11 and macOS 15+.
+Control Cider from Flexbar with album artwork, live playback progress, playback buttons, Volume, and Listening Mode.
 
-中文说明：[README.zh-CN.md](README.zh-CN.md)
+[![Latest release](https://img.shields.io/github/v/release/AzureSonw/flexbar-plugin-cider?label=release&color=5865f2)](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest) [![Cider 4.0](https://img.shields.io/badge/Cider-4.0-ec4899)](#-quick-start) [![FlexDesigner 2.2.2+](https://img.shields.io/badge/FlexDesigner-2.2.2%2B-5865f2)](#-quick-start) [![Windows 11](https://img.shields.io/badge/Windows-11-0078d4)](#-downloads) [![macOS 15+ experimental](https://img.shields.io/badge/macOS-15%2B%20experimental-6b7280)](#-downloads) [![MIT License](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
-Release: `1.4.0`.
+[简体中文](README.zh-CN.md) · Current release: [v1.4.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.4.0)
 
-- Previous, Now Playing, Play/Pause, and Next.
-- Native Volume slider for Cider playback volume (0–100%).
-- Cider 4.0 Listening Mode: one cycle button and three direct mode buttons.
-- Now Playing shows album artwork, title, and artist.
-- Now Playing includes a thin, display-only playback timeline below the artist.
-- Tap anywhere on Now Playing, including its cover, to toggle playback.
-- Unicode text is rendered on the computer with system fonts.
+## ✨ Features
 
-Plugin ID: `com.sonw.cider`. Author: Sonw.
+- **🎵 Now Playing:** Album artwork, Unicode title/artist, and a thin live timeline below the artist. The timeline scales with the key width and is display-only; tap anywhere on the key to play/pause.
+- **⏯️ Playback:** Previous, Play/Pause, and Next buttons.
+- **🔊 Volume:** A native slider controls Cider's playback volume and follows changes made in Cider.
+- **🎧 Listening Mode:** Cycle **Off → Gaming → Unwind → Off**, or select each mode directly. All four controls stay synchronized with Cider.
 
-## Installation and connection
+## 🚀 Quick Start
 
-1. Download the package for your platform from [Releases](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest) and install it through FlexDesigner's plugin manager.
-2. Open Cider and enable its local RPC/API service. Obtain your own Cider API token.
-3. In FlexDesigner, open **Settings → Application → Cider**.
-4. Enter the token in **Cider API Token**.
-5. Click **TEST CONNECTION**. A successful test shows **Connected to Cider**.
-6. Click **SAVE SETTINGS**. Saved changes take effect immediately.
-7. Add the Cider keys from FlexDesigner's key library to your layout, including **Volume** if desired.
+You need a Flexbar and a computer running **Cider 4.0** and **FlexDesigner 2.2.2+**.
 
-| Platform | Release package |
+1. Download the [package for your platform](#-downloads) from Releases.
+2. Install the `.flexplugin` file through FlexDesigner's plugin manager.
+3. [Create and copy your Cider token](#-get-your-cider-api-token).
+4. Open **FlexDesigner → Settings → Application → Cider** and paste it into **Cider API Token**.
+5. Click **TEST CONNECTION**, confirm **Connected to Cider**, then click **SAVE SETTINGS**.
+6. Add Cider controls from the key library to your layout, save, and upload to Flexbar.
+
+## 🔑 Get Your Cider API Token
+
+### In Cider
+
+1. Open **Cider → Settings → Connectivity**.
+2. Find **External Applications**, then **RPC Server**. Keep the RPC server enabled.
+3. Click **Manage External Application Access to Cider**.
+4. Click **Create New** to create a token.
+5. Click **Copy Token** for the new entry.
+
+### In FlexDesigner
+
+1. Open **Settings → Application → Cider**.
+2. Paste the copied token into **Cider API Token**.
+3. Click **TEST CONNECTION** and confirm **Connected to Cider**.
+4. Click **SAVE SETTINGS** to apply it.
+
+Testing does not save the token. Keep your token private and leave Cider running while using the plugin.
+
+## 🎛️ Available Controls
+
+| Control | What it does |
 | --- | --- |
-| Windows x64 | `com.sonw.cider.flexplugin` |
-| macOS Apple Silicon | `com.sonw.cider.macos-arm64.flexplugin` |
-| macOS Intel | `com.sonw.cider.macos-x64.flexplugin` |
+| Now Playing | Shows artwork, title/artist, and a playback timeline; tap to play/pause. |
+| Previous | Goes to the previous track. |
+| Play/Pause | Toggles playback. |
+| Next | Goes to the next track. |
+| Volume | Adjusts Cider's playback volume from 0–100%. |
+| Listening Mode | Cycles Off → Gaming → Unwind → Off. |
+| Listening Mode - Off | Selects Off. |
+| Listening Mode - Gaming | Selects Gaming. |
+| Listening Mode - Unwind | Selects Unwind. |
 
-Each package contains a platform-specific Canvas library. Choose the package matching
-FlexDesigner's architecture (an Intel app running under Rosetta needs the Intel package).
-macOS support is experimental: CI runs the automated tests and loads the native library
-on both architectures, but physical Flexbar testing has only been completed on Windows.
+The cycle button shows the current mode; direct buttons highlight the active mode in blue. Icons: Off `close-box-outline`, Gaming `gamepad-variant-outline`, Unwind `bed-king-outline`.
 
-Playback and Volume connect to `http://127.0.0.1:10767/api/v1` using the `apptoken` header.
-Listening Mode uses `/api/v2/audio/listening-mode` with the same saved token.
-The test uses `GET /playback/active` and accepts all successful HTTP responses, including 204.
-Testing a token does not save it. To remove a saved token, empty the field and save.
+The timeline cannot be dragged or used to seek. It hides when timing is unavailable or the key is too narrow. After resizing Now Playing, apply the change and upload the layout.
 
-FlexDesigner stores the token in its plugin application configuration under `ciderToken`.
-No encryption claim is made. Do not share your local FlexDesigner configuration or logs.
-Each user supplies their own token; no credential is included in the release.
+## 📦 Downloads
 
-Existing Cider keys keep their IDs and default widths: Now Playing 480, Play/Pause 80,
-Next 70, Previous 90. A separate layout import is not required.
+Download from the [latest release](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest):
 
-## Usage and troubleshooting
+| Platform | Package |
+| --- | --- |
+| Windows 11 x64 | [com.sonw.cider.flexplugin](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest/download/com.sonw.cider.flexplugin) |
+| macOS 15+ Apple Silicon | [com.sonw.cider.macos-arm64.flexplugin](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest/download/com.sonw.cider.macos-arm64.flexplugin) |
+| macOS 15+ Intel | [com.sonw.cider.macos-x64.flexplugin](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest/download/com.sonw.cider.macos-x64.flexplugin) |
 
-Keep Cider running with its RPC service available. Now Playing polls Cider v2 playback
-timing about once per second and reuses cached metadata/artwork between metadata
-refreshes (about every three seconds, or on a track change).
-Artwork fills a 58×58 square at (1,1), surrounded by a 1-pixel black border on the 60-pixel canvas.
-Non-square covers are center-cropped without stretching; narrow keys shrink the cover safely.
-Long titles and artist names are shortened with an ellipsis without splitting Unicode graphemes.
+macOS support is **experimental**: both builds pass CI, but physical Flexbar testing has only been completed on Windows. You may need to download the matching macOS package manually from GitHub.
 
-Now Playing uses the width received when the key loads. Title and artist retain the
-same horizontal centered text allocation as 1.2.1, independent of the larger cover. A small saved
-icon size can limit the cover so it does not enter the existing text area.
-In FlexDesigner 2.2.3, the observed Now Playing load
-event contains matching `key.width` and `key.style.width`; the renderer keeps the
-runtime `key.width` first, with `style.width` as a fallback. Apply width edits and
-upload the layout so FlexDesigner reloads the keys. The SDK has no documented normal-key
-resize event; subsequent redraws reuse the last loaded dimensions.
+Match FlexDesigner's architecture: Intel FlexDesigner running under Rosetta needs the Intel package.
 
-The timeline is 3 pixels high at y=50, with a dark-gray track and a white played
-section. It starts 45 pixels after the actual cover edge and ends 45 pixels before
-the canvas edge, so its length follows the loaded key width. Title/artist use
-centered vertical anchors y=15/y=34 (y=26 for a title without an artist).
-Invalid timing or insufficient width hides the timeline. Paused snapshots do not
-advance locally, and identical frames are skipped. Tapping any part of Now Playing
-still toggles playback; the timeline cannot seek. No new key or native slider is added.
+## 🔧 Troubleshooting
 
-Volume uses a native slider with a separate, fixed track width. In the observed 2.2.3
-load event it receives `key.width` but no `style`; `setSlider` updates its value, and
-the SDK documents no native-track resize API. Widening the outer key does not
-automatically grow the track. New Volume keys default to a 300-pixel outer width,
-a 230-pixel track, and a visible 28-pixel icon. The 70-pixel reserve leaves a
-50-pixel icon area plus the host's 20-pixel track inset; the native percentage format
-remains unchanged. Existing keys keep their saved styles.
+| Problem | What to check |
+| --- | --- |
+| Connection test fails | Keep Cider running; check **Settings → Connectivity → External Applications → RPC Server**. Copy the token again from **Manage External Application Access to Cider**, paste it correctly, test, then click **SAVE SETTINGS**. |
+| **Set Cider Token** appears | Configure and save the token in **FlexDesigner → Settings → Application → Cider**. |
+| An update appears inactive | Save and upload the layout, then restart FlexDesigner to clear an older linked backend. |
+| Missing characters | Install a system font for the affected language; fonts are not bundled. |
 
-For other Volume sizes, adjust **Background → Width** and **Foreground → Slider Width**
-in FlexDesigner, then apply and upload. With these icon defaults, use a track width
-of `outer width - 70` and an outer width of at least 250 pixels: the 2.2.3 slider editor
-has a 180-pixel track minimum, so a 220-pixel key cannot retain the same icon clearance.
-This is a manual sizing fallback, not automatic responsive resizing.
+## 🛠️ Build from Source
 
-The native **Volume** slider controls Cider's own playback volume. It reads the current
-volume when loaded and checks for changes in Cider every three seconds. Drag updates
-are combined at 75 ms intervals, keeping the latest value; incoming synchronization
-waits until the local change finishes. Each user keeps using their own saved token.
-
-If the display says **Set Cider Token**, configure and save the token.
-If connection testing fails, check that Cider is running, the local API is enabled,
-and the token is correct. Save the token after a successful test.
-If glyphs are missing, check that your computer has fonts for the relevant language installed.
-
-Version 1.2.1 fixes adjacent keys receiving a stale Now Playing image after a layout
-re-upload. FlexDesigner 2.2.3 reassigns numeric key UIDs without sending a removal
-event. Each load now replaces that device's active keys and invalidates obsolete
-renders. Missing, inconsistent, or non-integer widths are rejected, and very narrow
-keys shrink the cover and omit text that cannot fit.
-
-## Listening Mode
-
-Add **Listening Mode** to cycle **Off → Gaming → Unwind → Off**, or add the three
-**Listening Mode - Off / Gaming / Unwind** buttons to select a mode directly.
-The cycle button displays the current mode's icon and label. Direct buttons retain
-their own icons and highlight the active mode with a blue background.
-
-All four controls share Cider's current state. Successful changes update immediately;
-changes made inside Cider synchronize on the existing three-second refresh.
-Listening Mode requires Cider 4.0's v2 API. If it is unavailable, playback, Volume,
-and Now Playing continue working. All controls use the same application token.
-
-FlexDesigner's plugin **Homepage** opens this repository.
-
-During development, stop an old linked backend before loading a replacement. If an
-update appears inactive, restart FlexDesigner after saving your layout; two backend
-processes using the same plugin ID can otherwise keep an older version active.
-
-## Build from source
-
-Build on **Windows x64 or macOS (Apple Silicon / Intel) using Node.js 20.20.2** and npm:
+Use **Node.js 20.20.2** (see [.node-version](.node-version)) and npm in the repository folder:
 
 ```sh
 npm ci
@@ -135,41 +96,20 @@ npm run plugin:validate
 npm run plugin:pack
 ```
 
-The pinned legacy FlexCLI uses JSON import assertions that newer Node versions no longer accept.
-Use the Node version in `.node-version` / `.nvmrc`.
-The native Canvas binary is platform-specific. Build on the OS and architecture you intend to use.
-The release workflow builds and tests Windows x64, macOS arm64, and macOS x64 separately.
+Build on the target OS and architecture: the Canvas native library is platform-specific. The output is `com.sonw.cider.flexplugin`; official releases build Windows x64, macOS arm64, and macOS x64 separately.
 
-Rollup recreates `com.sonw.cider.plugin/backend/` from `src/`.
-It bundles JavaScript dependencies, emits the installed `skia-canvas` native binary,
-and includes the project license and third-party license notices. The bundle stays unminified because native Canvas
-bindings depend on JavaScript class names. Runtime dependencies do not need a `node_modules` folder.
+## 📁 Project Structure
 
-FlexCLI validates and packs the standard plugin folder into `com.sonw.cider.flexplugin`.
-Do not add local configuration, logs, credentials, or development files to that folder.
+| File | Purpose |
+| --- | --- |
+| [src/plugin.js](src/plugin.js) | FlexDesigner integration and control actions. |
+| [src/musicControl.js](src/musicControl.js) | Cider communication and artwork retrieval. |
+| [src/canvasRenderer.js](src/canvasRenderer.js) | Now Playing display. |
+| [manifest.json](com.sonw.cider.plugin/manifest.json) | Plugin metadata and controls. |
+| [ui/global_config.vue](com.sonw.cider.plugin/ui/global_config.vue) | Token settings and connection test. |
 
-## Source layout
+## 📄 License & References
 
-- `src/plugin.js`: SDK events, configuration updates, polling, drawing, and button actions.
-- `src/musicControl.js`: Cider requests and artwork retrieval.
-- `src/canvasRenderer.js`: focused Now Playing renderer.
-- `com.sonw.cider.plugin/manifest.json`: plugin identity, eight buttons, the native Volume slider, repository link, and `configPage: "global_config"`.
-- `com.sonw.cider.plugin/ui/global_config.vue`: application settings.
-- `rollup.config.mjs`: clean runtime build and native asset packaging.
+[MIT License](LICENSE) · © 2026 Sonw. Releases include project and third-party license notices.
 
-The renderer uses `skia-canvas` with Microsoft YaHei, Microsoft JhengHei, Yu Gothic,
-Malgun Gothic, Segoe UI, and system fallback fonts. Fonts are not bundled.
-It creates a 60-pixel-high PNG with `canvas.toDataURL("image/png")` and sends it through
-`plugin.draw(serialNumber, key, "base64", imageData)`.
-
-## Implementation references
-
-- [Flexbar SDK](https://flexdocumentation.readthedocs.io/en/latest/sdk/index.html)
-- [Plugin structure](https://flexdocumentation.readthedocs.io/en/latest/sdk/plugin_structure.html)
-- [YouTube Music plugin](https://github.com/MrCodeEU/Flexbar-Plugin-Youtube-Music-Desktop-App)
-
-## License
-
-[MIT License](LICENSE), copyright © 2026 Sonw. The release includes this license in
-`resources/LICENSE.txt`; bundled dependencies retain their own licenses, listed in
-`resources/THIRD_PARTY_LICENSES.txt`.
+[Flexbar SDK](https://flexdocumentation.readthedocs.io/en/latest/sdk/index.html) · [YouTube Music plugin — README style reference](https://github.com/MrCodeEU/Flexbar-Plugin-Youtube-Music-Desktop-App)
