@@ -96,9 +96,10 @@ test('overlay centers and scales with actual artwork; text font cannot change ic
   }
   const draw=renderer(RecordingCanvas)
   for(const [width,iconSize,coverSize] of [[300,42,58],[300,24,40],[30,42,21],[7,42,4]]) {
-    const size=Math.min(28,coverSize*.55),s=size/24,k={width,style:{width,iconSize}}
+    const size=Math.min(36,coverSize*.68),s=size/24,k={width,style:{width,iconSize}}
     for(const state of ['playing','paused']) {
       operations.length=0;await draw(track(state),k)
+      assert.equal(operations.filter(o=>o.name==='arc').length,0,'overlay must not have a circular backdrop')
       assert.deepEqual(operations.find(o=>o.name==='translate').args,[1+coverSize/2,30])
       assert.deepEqual(operations.find(o=>o.name==='rect').args,[1,(60-coverSize)/2,coverSize,coverSize])
       if(state==='paused') assert.deepEqual(operations.filter(o=>['moveTo','lineTo'].includes(o.name)).map(o=>o.args),[[-5*s,-8*s],[7*s,0],[-5*s,8*s]])

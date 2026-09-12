@@ -13,7 +13,7 @@ function fitText(context, value, maxWidth) {
 
 function drawPlaybackOverlay(context, state, coverX, coverY, coverSize) {
   if (coverSize <= 0 || (state !== "playing" && state !== "paused")) return
-  const iconSize = Math.min(28, coverSize * 0.55)
+  const iconSize = Math.min(36, coverSize * 0.68)
   const scale = iconSize / 24
   context.save()
   // Clip even the glow to the actual artwork, including very narrow keys.
@@ -21,13 +21,9 @@ function drawPlaybackOverlay(context, state, coverX, coverY, coverSize) {
   context.rect(coverX, coverY, coverSize, coverSize)
   context.clip()
   context.translate(coverX + coverSize / 2, coverY + coverSize / 2)
-  context.fillStyle = "rgba(0, 0, 0, 0.28)"
-  context.beginPath()
-  context.arc(0, 0, iconSize * 0.62, 0, Math.PI * 2)
-  context.fill()
   context.fillStyle = "#ffffff"
-  context.shadowColor = "#ffffff"
-  context.shadowBlur = Math.min(8, iconSize * 0.3)
+  context.shadowColor = "rgba(0, 0, 0, 0.65)"
+  context.shadowBlur = Math.min(4, iconSize * 0.15)
   context.beginPath()
   if (state === "paused") {
     context.moveTo(-5 * scale, -8 * scale)
