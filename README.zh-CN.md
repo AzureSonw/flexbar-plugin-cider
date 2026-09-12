@@ -28,11 +28,11 @@
 
 ### 在 Cider 中
 
-1. 打开 **Cider → Settings → Connectivity**。
-2. 找到 **External Applications** 下的 **RPC Server**，保持 RPC 服务启用。
+1. 打开 **Cider → 设置 → 连接**。
+2. 找到 **外部应用** 下的 **WebSockets API**，保持 API 服务启用。
 3. 点击 **Manage External Application Access to Cider**。
-4. 点击 **Create New** 创建 token。
-5. 在新建的条目上点击 **Copy Token**。
+4. 点击 **新建** 创建 token。
+5. 在新建的条目上点击 **拷贝**。
 
 ### 在 FlexDesigner 中
 
