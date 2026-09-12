@@ -29,7 +29,7 @@ You need a Flexbar and a computer running **Cider 4.0** and **FlexDesigner 2.2.2
 ### In Cider
 
 1. Open **Cider → Settings → Connectivity**.
-2. Find **External Applications**, then **RPC Server**. Keep the RPC server enabled.
+2. Find **External Applications**, then **RPC Server/WebSockets API**. Keep the RPC/API server enabled.
 3. Click **Manage External Application Access to Cider**.
 4. Click **Create New** to create a token.
 5. Click **Copy Token** for the new entry.
