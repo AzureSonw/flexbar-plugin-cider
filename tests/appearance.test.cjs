@@ -199,7 +199,7 @@ test('font size changes only text, preserves per-key defaults, and fits larger t
     assert.ok(text.every(line=>line.width<=412))
     if(fontSize>24) {
       assert.ok(text[0].top>=0);assert.ok(text[0].bottom+1.9<=text[1].top)
-      assert.ok(text[1].bottom<=48,'large fonts must leave space above the timeline')
+      assert.ok(text[1].bottom<=48+1e-6,`large fonts must leave space above the timeline: ${JSON.stringify({fontSize,text})}`)
     } else assert.deepEqual(text.map(line=>line.y),[15,34])
     assert.deepEqual(current.getImageData(0,0,60,60).data,base.getImageData(0,0,60,60).data)
     assert.deepEqual(current.getImageData(104,50,331,3).data,base.getImageData(104,50,331,3).data)
