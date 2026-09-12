@@ -130,7 +130,7 @@ function harness(options = {}) {
   const handlers = {}, draws = [], sliders = [], timers = new Map(), counters = { progress:0, metadata:0, render:0, volume:0, modes:0, actions:[] }
   let time = 0, track = { title:'Track a',artist:'Artist',artwork:'cached-art',isRunning:true,trackId:'a' }, progress = {currentTime:0,duration:100,state:'playing',trackId:'a'}
   const plugin = {
-    on(name, fn) { handlers[name] = fn }, getConfig:async () => ({ciderToken:'fixture-token',...options.config}), start() {}, transport:{ws:{once(){}}},
+    on(name, fn) { handlers[name] = fn }, getConfig:async () => options.getConfig ? options.getConfig() : ({ciderToken:'fixture-token',...options.config}), start() {}, transport:{ws:{once(){}}},
     draw:async (serialNumber,key,type,image) => { draws.push({serialNumber,key,type,image}); return options.draw?.() ?? {status:'success'} },
     setSlider:async (serialNumber,key,value) => { sliders.push({serialNumber,key:structuredClone(key),value});return {status:'success'} },
   }
@@ -444,4 +444,41 @@ test('expiry and layout replacement cannot draw to reused UIDs or revive a cance
   old.fn();await h.idle();assert.equal(h.last().settings.showPlayPauseOverlay,true)
   const action=deferred();h.options.action=()=>action.promise;const click=h.click('nowPlaying')
   await h.alive([]);action.resolve(true);await click;await h.idle();assert.equal(h.timeouts.size,0)
+})
+
+test('direct host config payloads retain the live token and keys without requiring another layout upload', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1),key('volume',2),key('listeningMode',3)])
+  for(const wrapped of [false,true,false]) {
+    const config={ciderToken:'fixture-token',autoHidePlayPauseOverlay:true,playPauseOverlayHideDelaySeconds:5,fontSize:wrapped?20:27}
+    const before=[h.counters.progress,h.counters.metadata,h.counters.volume,h.counters.modes,h.sliders.length]
+    h.draws.length=0
+    await h.handlers['plugin.config.updated'](wrapped?{config}:config)
+    assert.deepEqual(h.tokens,['fixture-token'],'saving appearance must not replace the runtime token with an empty string')
+    assert.deepEqual([h.counters.progress,h.counters.metadata,h.counters.volume,h.counters.modes,h.sliders.length],before)
+    assert.equal(h.draws.length,1);assert.equal(h.last().settings.fontSize,config.fontSize)
+    assert.ok(h.draws.every(d=>d.key.uid===1))
+    assert.equal((await h.click('nowPlaying')).status,'success');await h.idle()
+    assert.equal(h.last().settings.fontSize,config.fontSize)
+  }
+})
+
+test('notification-only or malformed config events reload saved settings without clearing credentials', async () => {
+  const h=harness({config:{fontSize:27}});await h.alive([key('nowPlaying',1)])
+  for(const payload of [undefined,null,[],{},{config:null},{config:[]},{fontSize:12}]) {
+    await h.handlers['plugin.config.updated'](payload)
+    assert.deepEqual(h.tokens,['fixture-token']);assert.equal(h.last().settings.fontSize,27)
+  }
+  await h.handlers['plugin.config.updated']({ciderToken:''})
+  assert.deepEqual(h.tokens,['fixture-token',''],'explicitly clearing a token still applies')
+})
+
+test('a delayed or failed config reread cannot erase a newer direct host update', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1)])
+  const gate=deferred();h.options.getConfig=()=>gate.promise
+  const pending=h.handlers['plugin.config.updated']({})
+  await h.handlers['plugin.config.updated']({ciderToken:'latest-token',fontSize:30})
+  gate.resolve({ciderToken:'stale-token',fontSize:12});await pending
+  assert.deepEqual(h.tokens,['fixture-token','latest-token']);assert.equal(h.last().settings.fontSize,30)
+  h.options.getConfig=async()=>{throw Error('unavailable')};await h.handlers['plugin.config.updated']({})
+  assert.deepEqual(h.tokens,['fixture-token','latest-token']);assert.equal(h.last().settings.fontSize,30)
 })

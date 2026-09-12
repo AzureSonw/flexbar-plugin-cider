@@ -380,7 +380,17 @@ plugin.on("plugin.dead", ({ serialNumber, keys }) => {
   if (!activeKeys.size) resetOverlay()
 })
 
-plugin.on("plugin.config.updated", async ({ config }) => {
+plugin.on("plugin.config.updated", async (payload) => {
+  // FlexDesigner sends config directly; some SDK examples wrap it in { config }.
+  // A notification without a full config must never erase the live connection.
+  let config = payload?.config ?? payload
+  const isConfig = value => value && typeof value === "object" && !Array.isArray(value) && Object.hasOwn(value, "ciderToken")
+  if (!isConfig(config)) {
+    const revision = configRevision
+    try { config = await plugin.getConfig() }
+    catch { logger.warn("Could not reload Cider settings."); return }
+    if (revision !== configRevision || !isConfig(config)) return
+  }
   const { tokenChanged, appearanceChanged } = applyConfig(config)
   if (tokenChanged) {
     await Promise.all([refreshNowPlaying(), refreshVolume(), refreshListeningMode()])
