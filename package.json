@@ -29,7 +29,7 @@
     "printWidth": 120
   },
   "name": "flexbar-plugin-cider",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "license": "MIT",
   "private": true,
   "engines": {

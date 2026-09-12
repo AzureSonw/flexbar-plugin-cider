@@ -4,12 +4,13 @@ Control Cider from Flexbar with album artwork, live playback progress, playback 
 
 [![Latest release](https://img.shields.io/github/v/release/AzureSonw/flexbar-plugin-cider?label=release&color=5865f2)](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest) [![Cider 4.0](https://img.shields.io/badge/Cider-4.0-ec4899)](#-quick-start) [![FlexDesigner 2.2.2+](https://img.shields.io/badge/FlexDesigner-2.2.2%2B-5865f2)](#-quick-start) [![Windows 11](https://img.shields.io/badge/Windows-11-0078d4)](#-downloads) [![macOS 15+ experimental](https://img.shields.io/badge/macOS-15%2B%20experimental-6b7280)](#-downloads) [![MIT License](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
-[简体中文](README.zh-CN.md) · Current release: [v1.4.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.4.0)
+[简体中文](README.zh-CN.md) · Current release: [v1.5.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.5.0)
 
 ## ✨ Features
 
 - **🎵 Now Playing:** Album artwork, Unicode title/artist, and a thin live timeline below the artist. The timeline scales with the key width and is display-only; tap anywhere on the key to play/pause.
 - **⏯️ Playback:** Previous, Play/Pause, and Next buttons.
+- **🎨 Appearance:** Optional play/pause icons on the cover, a custom timeline color, and system fonts with adjustable text size.
 - **🔊 Volume:** A native slider controls Cider's playback volume and follows changes made in Cider.
 - **🎧 Listening Mode:** Cycle **Off → Gaming → Unwind → Off**, or select each mode directly. All four controls stay synchronized with Cider.
 
@@ -42,6 +43,19 @@ You need a Flexbar and a computer running **Cider 4.0** and **FlexDesigner 2.2.2
 4. Click **SAVE SETTINGS** to apply it.
 
 Testing does not save the token. Keep your token private and leave Cider running while using the plugin.
+
+## 🎨 Now Playing Appearance
+
+Open **FlexDesigner → Settings → Application → Cider** and scroll to **Now Playing Appearance**.
+
+| Setting | Behavior |
+| --- | --- |
+| Show Play/Pause Overlay | Enabled by default. Shows a pause icon while playing and a play icon while paused. Turning it off keeps tap-to-play/pause working. |
+| Timeline Color | Sets the played portion of the timeline; white by default. |
+| Now Playing Font | Choose a font installed on your computer, or **System Default**. Applies to the song title and artist. |
+| Now Playing Font Size | Set the title to **12–30 px**, or leave empty to use the key's font size. The artist line adapts to fit. |
+
+Click **SAVE SETTINGS** below the font controls to apply your choices immediately. The save button in **Cider Connection** saves the same settings. Unavailable fonts fall back to the system default.
 
 ## 🎛️ Available Controls
 
@@ -106,7 +120,7 @@ Build on the target OS and architecture: the Canvas native library is platform-s
 | [src/musicControl.js](src/musicControl.js) | Cider communication and artwork retrieval. |
 | [src/canvasRenderer.js](src/canvasRenderer.js) | Now Playing display. |
 | [manifest.json](com.sonw.cider.plugin/manifest.json) | Plugin metadata and controls. |
-| [ui/global_config.vue](com.sonw.cider.plugin/ui/global_config.vue) | Token settings and connection test. |
+| [ui/global_config.vue](com.sonw.cider.plugin/ui/global_config.vue) | Connection and Now Playing appearance settings. |
 
 ## 📄 License & References
 

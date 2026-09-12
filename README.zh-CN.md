@@ -4,12 +4,13 @@
 
 [![最新版本](https://img.shields.io/github/v/release/AzureSonw/flexbar-plugin-cider?label=release&color=5865f2)](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest) [![Cider 4.0](https://img.shields.io/badge/Cider-4.0-ec4899)](#-快速开始) [![FlexDesigner 2.2.2+](https://img.shields.io/badge/FlexDesigner-2.2.2%2B-5865f2)](#-快速开始) [![Windows 11](https://img.shields.io/badge/Windows-11-0078d4)](#-下载与平台支持) [![macOS 15+ 实验性支持](https://img.shields.io/badge/macOS-15%2B%20experimental-6b7280)](#-下载与平台支持) [![MIT 许可证](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
-[English](README.md) · 当前版本：[v1.4.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.4.0)
+[English](README.md) · 当前版本：[v1.5.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.5.0)
 
 ## ✨ 功能
 
 - **🎵 Now Playing：** 显示专辑封面、Unicode 歌名和歌手，歌手下方的实时进度条随按键宽度调整。进度条仅供显示，点击按键任意位置可播放或暂停。
 - **⏯️ 播放控制：** 上一首、播放/暂停、下一首。
+- **🎨 外观设置：** 可开关的封面播放/暂停图标、自定义进度条颜色，以及系统字体和字号选择。
 - **🔊 音量：** 原生滑块控制 Cider 的播放音量，并同步 Cider 内的音量变化。
 - **🎧 聆听模式：** 按 **Off → Gaming → Unwind → Off** 循环，或用独立按钮直接选择模式。四个按钮均与 Cider 同步。
 
@@ -42,6 +43,19 @@
 4. 点击 **SAVE SETTINGS**，保存后生效。
 
 连接测试不会自动保存 token。请妥善保管 token，并在使用插件时保持 Cider 运行。
+
+## 🎨 Now Playing 外观设置
+
+打开 **FlexDesigner → Settings → Application → Cider**（设置 → 应用 → Cider），向下找到 **Now Playing Appearance**。
+
+| 设置 | 功能 |
+| --- | --- |
+| Show Play/Pause Overlay | 默认开启。播放时显示暂停图标，暂停时显示播放图标；关闭后仍可点击按键切换播放状态。 |
+| Timeline Color | 设置进度条已播放部分的颜色，默认为白色。 |
+| Now Playing Font | 选择电脑上已安装的字体，或 **System Default**；只用于歌名和歌手。 |
+| Now Playing Font Size | 将歌名字号设为 **12–30 px**，留空则沿用按键字号；歌手文字会自动调整以适应空间。 |
+
+点击字体设置下方的 **SAVE SETTINGS** 即可立即应用。**Cider Connection** 中的保存按钮也会保存相同设置。所选字体不可用时会回退到系统默认字体。
 
 ## 🎛️ 可用控制
 
