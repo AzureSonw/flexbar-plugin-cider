@@ -79,7 +79,7 @@ macOS 为**实验性支持**：两种架构均通过 CI 检查，实体 Flexbar 
 
 | 问题 | 处理方法 |
 | --- | --- |
-| 连接测试失败 | 保持 Cider 运行，检查 **Settings → Connectivity → External Applications → RPC Server**。从 **Manage External Application Access to Cider** 重新复制 token，正确粘贴并测试后，点击 **SAVE SETTINGS**。 |
+| 连接测试失败 | 保持 Cider 运行，检查 **Settings → Connectivity → External Applications → RPC Server**。从 **Manage External Application Access to Cider** 重新复制 token，正确粘贴并测试后，点击 **SAVE SETTINGS**。另外请确认安装包与平台和架构匹配：例如 macOS 安装了 Windows 版安装包，或下载了错误的 macOS 架构版本，也可能导致连接测试失败。 |
 | 显示 **Set Cider Token** | 在 **FlexDesigner → Settings → Application → Cider** 中配置并保存 token。 |
 | 更新似乎没有生效 | 保存并上传布局，然后重启 FlexDesigner，清理仍在运行的旧链接后端。 |
 | 部分字符缺失 | 安装对应语言的系统字体；插件不附带字体。 |
