@@ -126,10 +126,11 @@ test('timeline geometry uses smaller saved cover sizes and invalid progress neve
 })
 
 function harness(options = {}) {
+  const timeouts = new Set()
   const handlers = {}, draws = [], sliders = [], timers = new Map(), counters = { progress:0, metadata:0, render:0, volume:0, modes:0, actions:[] }
   let time = 0, track = { title:'Track a',artist:'Artist',artwork:'cached-art',isRunning:true,trackId:'a' }, progress = {currentTime:0,duration:100,state:'playing',trackId:'a'}
   const plugin = {
-    on(name, fn) { handlers[name] = fn }, getConfig:async () => ({ciderToken:'fixture-token'}), start() {}, transport:{ws:{once(){}}},
+    on(name, fn) { handlers[name] = fn }, getConfig:async () => ({ciderToken:'fixture-token',...options.config}), start() {}, transport:{ws:{once(){}}},
     draw:async (serialNumber,key,type,image) => { draws.push({serialNumber,key,type,image}); return options.draw?.() ?? {status:'success'} },
     setSlider:async (serialNumber,key,value) => { sliders.push({serialNumber,key:structuredClone(key),value});return {status:'success'} },
   }
@@ -139,12 +140,16 @@ function harness(options = {}) {
     renderNowPlaying:async(t,k,settings)=>{ counters.render++; return options.render ? options.render(t,k,settings) : JSON.stringify({track:t,width:k.width,settings}) },
     getVolume:async()=>{ counters.volume++; return options.volume?.() ?? 0.5 },setVolume:async()=>true,
     getListeningMode:async()=>{ counters.modes++; return 'off' },setListeningMode:async mode=>mode,
-    togglePlayPause:async()=>{ counters.actions.push('playpause'); return true },nextTrack:async()=>{ counters.actions.push('next'); return true },previousTrack:async()=>{ counters.actions.push('previous'); return true },
+    togglePlayPause:async()=>{ counters.actions.push('playpause'); return options.action ? options.action() : true },nextTrack:async()=>{ counters.actions.push('next'); return true },previousTrack:async()=>{ counters.actions.push('previous'); return true },
     Date:class extends Date { static now() { return time } },
     setInterval(fn, ms) { assert.ok([1000,3000].includes(ms)); assert.ok(!timers.has(ms)); timers.set(ms,fn); return {unref(){}} },
+    setTimeout(fn, ms) { const timer={fn,at:time+ms,unref(){}}; timeouts.add(timer);return timer },
+    clearTimeout(timer) { timeouts.delete(timer) },
   }
   const runtime = new Function(...Object.keys(params),source('plugin.js') + '\nreturn {idle:()=>refreshPromise,controlsIdle:()=>Promise.all([volumeRefreshPromise,listeningRefreshPromise])}')( ...Object.values(params))
-  return { handlers,draws,sliders,counters,timers,options, setProgress(value){progress=value},setTrack(value){track=value},last:()=>JSON.parse(draws.filter(d=>d.type==='base64').at(-1).image),
+  return { handlers,draws,sliders,counters,timers,timeouts,options, setProgress(value){progress=value},setTrack(value){track=value},last:()=>JSON.parse(draws.filter(d=>d.type==='base64').at(-1).image),
+    advance:async ms=>{time+=ms;for(const timer of [...timeouts])if(timer.at<=time){timeouts.delete(timer);timer.fn()}await runtime.idle()},
+    save:async update=>{options.config={...options.config,...update};await handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',...options.config}})},
     alive:(keys,serialNumber='device')=>handlers['plugin.alive']({serialNumber,keys}),
     tick:async()=>{ time+=1000; timers.get(1000)(); await runtime.idle() },
     timer:()=>{time+=1000; timers.get(1000)()}, idle:runtime.idle,
@@ -333,4 +338,107 @@ test('an appearance save invalidates an older polling snapshot and uses only its
   await saving
   assert.equal(h.counters.progress,before);assert.equal(h.draws.length,1)
   assert.equal(h.last().settings.showPlayPauseOverlay,false);assert.equal(h.last().track.progress.currentTime,0)
+})
+
+for(const state of ['playing','paused']) test(`auto-hide ${state}: one global timeout hides all frames exactly at deadline without any API call`, async () => {
+  const h=harness({config:{autoHidePlayPauseOverlay:true}})
+  h.setProgress({currentTime:0,duration:100,state,trackId:'a'})
+  await h.alive([key('nowPlaying',1),key('nowPlaying',2)])
+  assert.deepEqual([...h.timers.keys()].sort(),[1000,3000]);assert.equal(h.timeouts.size,1)
+  assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  await h.advance(2999);assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  const calls=structuredClone(h.counters),count=h.draws.length
+  await h.advance(1)
+  assert.equal(h.timeouts.size,0);assert.equal(h.draws.length,count+2)
+  assert.ok(h.draws.slice(-2).every(d=>JSON.parse(d.image).settings.showPlayPauseOverlay===false))
+  assert.deepEqual({...h.counters,render:calls.render},calls,'expiry must only render, without Cider requests')
+  await h.tick();assert.equal(h.draws.length,count+2,'unchanged hidden snapshot must reuse the frame')
+})
+
+test('legacy persistent and master-off modes never schedule hiding; save transitions apply immediately', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1)])
+  assert.equal(h.timeouts.size,0);await h.advance(30000);assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  const calls=()=>[h.counters.progress,h.counters.metadata,h.counters.volume,h.counters.modes]
+  const before=calls()
+  await h.save({autoHidePlayPauseOverlay:true});assert.equal(h.timeouts.size,1)
+  await h.advance(2000);const old=[...h.timeouts][0]
+  await h.save({playPauseOverlayHideDelaySeconds:5});assert.equal(h.timeouts.size,1)
+  old.fn();await h.idle();assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  await h.advance(4999);assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  await h.advance(1);assert.equal(h.last().settings.showPlayPauseOverlay,false)
+  await h.save({autoHidePlayPauseOverlay:false});assert.equal(h.last().settings.showPlayPauseOverlay,true);assert.equal(h.timeouts.size,0)
+  await h.save({showPlayPauseOverlay:false,autoHidePlayPauseOverlay:true});assert.equal(h.last().settings.showPlayPauseOverlay,false);assert.equal(h.timeouts.size,0)
+  assert.deepEqual(calls(),before)
+  h.setProgress({currentTime:0,duration:100,state:'paused',trackId:'a'});await h.tick()
+  assert.equal(h.last().settings.showPlayPauseOverlay,false);assert.equal(h.timeouts.size,0)
+  await h.save({showPlayPauseOverlay:true});assert.equal(h.last().settings.showPlayPauseOverlay,true);assert.equal(h.timeouts.size,1)
+  const timer=[...h.timeouts][0];await h.save({timelineColor:'#0088ff',fontSize:18})
+  assert.equal([...h.timeouts][0],timer,'unrelated appearance changes must not extend the countdown')
+})
+
+test('existing one-second polling reveals both external playback transitions and restarts the deadline', async () => {
+  const h=harness({config:{autoHidePlayPauseOverlay:true}});await h.alive([key('nowPlaying',1)])
+  await h.advance(3000)
+  for(const state of ['paused','playing']) {
+    h.setProgress({currentTime:0,duration:100,state,trackId:'a'});await h.tick()
+    assert.equal(h.last().track.progress.state,state);assert.equal(h.last().settings.showPlayPauseOverlay,true)
+    assert.equal(h.timeouts.size,1);await h.advance(3000);assert.equal(h.last().settings.showPlayPauseOverlay,false)
+  }
+})
+
+test('successful Now Playing and standalone actions reveal only the resulting authoritative snapshot', async () => {
+  const h=harness({config:{autoHidePlayPauseOverlay:true}});await h.alive([key('nowPlaying',1)])
+  for(const [name,state] of [['nowPlaying','paused'],['playPause','playing'],['playPause','playing']]) {
+    await h.advance(3000);assert.equal(h.last().settings.showPlayPauseOverlay,false)
+    const gate=deferred();h.options.progress=()=>gate.promise
+    assert.equal((await h.click(name)).status,'success')
+    assert.equal(h.last().settings.showPlayPauseOverlay,false,'click must not guess the state')
+    h.setProgress({currentTime:0,duration:100,state,trackId:'a'})
+    h.options.progress=undefined;gate.resolve({currentTime:0,duration:100,state,trackId:'a'});await h.idle()
+    assert.equal(h.last().track.progress.state,state);assert.equal(h.last().settings.showPlayPauseOverlay,true)
+    assert.equal(h.timeouts.size,1)
+  }
+  await h.advance(3000);h.options.action=async()=>false
+  assert.equal((await h.click('nowPlaying')).status,'error');await h.idle()
+  assert.equal(h.last().settings.showPlayPauseOverlay,false);assert.equal(h.timeouts.size,0)
+})
+
+test('invalid, stopped, offline, token changes and inactive layouts cancel overlay state; valid recovery shows again', async () => {
+  const h=harness({config:{autoHidePlayPauseOverlay:true}});await h.alive([key('nowPlaying',1)])
+  for(const progress of [null,{currentTime:0,duration:100,state:'stopped',trackId:'a'},{currentTime:0,duration:100,state:'invalid',trackId:'a'}]) {
+    h.setProgress(progress);await h.tick();assert.equal(h.timeouts.size,0);assert.equal(h.last().settings.showPlayPauseOverlay,false)
+    h.setProgress({currentTime:0,duration:100,state:'playing',trackId:'a'});await h.tick()
+    assert.equal(h.timeouts.size,1);assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  }
+  h.setTrack({title:'Offline',isRunning:false});h.setProgress(null);await h.tick();assert.equal(h.timeouts.size,0)
+  h.setTrack({title:'Track a',isRunning:true,trackId:'a'});h.setProgress({currentTime:0,duration:100,state:'playing',trackId:'a'});await h.tick()
+  const old=[...h.timeouts][0];h.options.progress=async()=>null
+  await h.handlers['plugin.config.updated']({config:{ciderToken:'new',autoHidePlayPauseOverlay:true}})
+  assert.equal(h.timeouts.size,0);const count=h.draws.length;old.fn();await h.idle();assert.equal(h.draws.length,count)
+  h.options.progress=undefined;await h.alive([key('nowPlaying',2)])
+  await h.handlers['plugin.dead']({serialNumber:'device',keys:[key('nowPlaying',2)]})
+  assert.equal(h.timeouts.size,0);const calls=structuredClone(h.counters);await h.advance(30000);assert.deepEqual(h.counters,calls)
+})
+
+test('expiry invalidates an in-flight API snapshot and hides with cached data only', async () => {
+  const h=harness({config:{autoHidePlayPauseOverlay:true}});await h.alive([key('nowPlaying',1)])
+  const gate=deferred();h.options.progress=()=>gate.promise;h.timer()
+  const count=h.counters.progress,expiry=h.advance(2000)
+  h.options.progress=undefined;gate.resolve({currentTime:99,duration:100,state:'paused',trackId:'a'});await expiry
+  assert.equal(h.last().track.progress.currentTime,0);assert.equal(h.last().settings.showPlayPauseOverlay,false)
+  assert.equal(h.counters.progress,count)
+})
+
+test('expiry and layout replacement cannot draw to reused UIDs or revive a cancelled countdown', async () => {
+  const h=harness({config:{autoHidePlayPauseOverlay:true}});await h.alive([key('nowPlaying',1,800)])
+  const old=[...h.timeouts][0],entered=deferred(),gate=deferred()
+  h.options.render=async(t,k,settings)=>{entered.resolve();await gate.promise;return JSON.stringify({track:t,width:k.width,settings})}
+  h.draws.length=0;const expiry=h.advance(3000);await entered.promise
+  const replacing=h.alive([key('previous',1),key('nowPlaying',3,300)])
+  h.options.render=undefined;gate.resolve();await Promise.all([expiry,replacing])
+  assert.ok(h.draws.length);assert.ok(h.draws.every(d=>d.key.uid===3&&d.key.width===300))
+  assert.equal(h.last().settings.showPlayPauseOverlay,true);assert.equal(h.timeouts.size,1)
+  old.fn();await h.idle();assert.equal(h.last().settings.showPlayPauseOverlay,true)
+  const action=deferred();h.options.action=()=>action.promise;const click=h.click('nowPlaying')
+  await h.alive([]);action.resolve(true);await click;await h.idle();assert.equal(h.timeouts.size,0)
 })

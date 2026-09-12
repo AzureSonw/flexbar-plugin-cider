@@ -15,8 +15,11 @@ function availableFont(value) {
 export function normalizeAppearance(config) {
   const color = typeof config?.timelineColor === "string" ? config.timelineColor.trim() : ""
   const size = typeof config?.fontSize === "number" || typeof config?.fontSize === "string" ? Number(config.fontSize) : NaN
+  const delay = config?.playPauseOverlayHideDelaySeconds
   return {
     showPlayPauseOverlay: config?.showPlayPauseOverlay !== false,
+    autoHidePlayPauseOverlay: config?.autoHidePlayPauseOverlay === true,
+    playPauseOverlayHideDelaySeconds: Number.isInteger(delay) && delay >= 1 && delay <= 30 ? delay : 3,
     timelineColor: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : "#ffffff",
     fontFamily: availableFont(config?.fontFamily),
     fontSize: Number.isInteger(size) && size >= 12 && size <= 30 ? size : null,

@@ -27,6 +27,28 @@
         class="mb-4"
         :disabled="busy || loading"
       />
+      <v-switch
+        v-model="autoHidePlayPauseOverlay"
+        label="Auto-hide Play/Pause Overlay"
+        color="primary"
+        inset
+        hide-details
+        class="mb-4"
+        :disabled="busy || loading || !showPlayPauseOverlay"
+      />
+      <v-text-field
+        v-model="playPauseOverlayHideDelaySeconds"
+        label="Hide Overlay After"
+        type="number"
+        min="1"
+        max="30"
+        step="1"
+        suffix="seconds"
+        hint="1–30 seconds. Invalid values use 3 seconds."
+        persistent-hint
+        class="mb-4"
+        :disabled="busy || loading || !showPlayPauseOverlay || !autoHidePlayPauseOverlay"
+      />
       <v-menu :close-on-content-click="false">
         <template v-slot:activator="{ props: menuProps }">
           <v-text-field
@@ -92,10 +114,16 @@ export default {
     return {
       ciderToken: "", loading: true, busy: false, message: "", messageType: "info",
       showPlayPauseOverlay: true, timelineColor: "#ffffff", fontFamily: "", fontSize: null,
+      autoHidePlayPauseOverlay: false, playPauseOverlayHideDelaySeconds: 3,
       fonts: [], fontsLoading: true, fontMessage: "",
     }
   },
   computed: {
+    normalizedOverlayDelay() {
+      const value = this.playPauseOverlayHideDelaySeconds
+      const delay = typeof value === "number" || typeof value === "string" ? Number(value) : NaN
+      return Number.isInteger(delay) && delay >= 1 && delay <= 30 ? delay : 3
+    },
     normalizedColor() {
       const color = typeof this.timelineColor === "string" ? this.timelineColor.trim() : ""
       return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : "#ffffff"
@@ -113,6 +141,9 @@ export default {
       const config = await this.$fd.getConfig()
       this.ciderToken = typeof config?.ciderToken === "string" ? config.ciderToken : ""
       this.showPlayPauseOverlay = config?.showPlayPauseOverlay !== false
+      this.autoHidePlayPauseOverlay = config?.autoHidePlayPauseOverlay === true
+      const delay = config?.playPauseOverlayHideDelaySeconds
+      this.playPauseOverlayHideDelaySeconds = Number.isInteger(delay) && delay >= 1 && delay <= 30 ? delay : 3
       this.timelineColor = typeof config?.timelineColor === "string" ? config.timelineColor : "#ffffff"
       this.timelineColor = this.normalizedColor
       this.fontFamily = typeof config?.fontFamily === "string" ? config.fontFamily : ""
@@ -151,6 +182,8 @@ export default {
           ...await this.$fd.getConfig(),
           ciderToken: this.ciderToken,
           showPlayPauseOverlay: this.showPlayPauseOverlay !== false,
+          autoHidePlayPauseOverlay: this.autoHidePlayPauseOverlay === true,
+          playPauseOverlayHideDelaySeconds: this.normalizedOverlayDelay,
           timelineColor: this.normalizedColor,
           fontFamily: this.fontsLoading || this.fonts.includes(this.fontFamily) ? this.fontFamily : "",
           fontSize: this.normalizedFontSize,
@@ -160,6 +193,7 @@ export default {
         this.modelValue.config = config
         this.timelineColor = config.timelineColor
         this.fontSize = config.fontSize
+        this.playPauseOverlayHideDelaySeconds = config.playPauseOverlayHideDelaySeconds
         this.message = "Settings saved"
         this.messageType = "success"
       } catch {

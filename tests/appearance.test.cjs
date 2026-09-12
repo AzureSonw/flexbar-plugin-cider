@@ -5,6 +5,13 @@ const path = require('node:path')
 const { Canvas, loadImage, FontLibrary } = require('skia-canvas')
 const { appearance, loadAppearance, renderer } = require('./support.cjs')
 const render = renderer()
+
+test('auto-hide uses an explicit boolean and strict numeric whole-second defaults', () => {
+  for(const value of [undefined,null,false,0,1,'true','false',{},[]]) assert.equal(appearance.normalizeAppearance({autoHidePlayPauseOverlay:value}).autoHidePlayPauseOverlay,false)
+  assert.equal(appearance.normalizeAppearance({autoHidePlayPauseOverlay:true}).autoHidePlayPauseOverlay,true)
+  for(const value of [1,3,5,30]) assert.equal(appearance.normalizeAppearance({playPauseOverlayHideDelaySeconds:value}).playPauseOverlayHideDelaySeconds,value)
+  for(const value of [undefined,null,false,true,0,31,-1,2.5,NaN,Infinity,'5','',{},[]]) assert.equal(appearance.normalizeAppearance({playPauseOverlayHideDelaySeconds:value}).playPauseOverlayHideDelaySeconds,3)
+})
 const key = width => ({ width, style: { width, iconSize:42, fontSize:24 } })
 const track = state => ({ title:'夜曲 · アイドル · 좋은 날 👩🏽‍🚀', artist:'周杰伦 · YOASOBI · 아이유', progress:{currentTime:50,duration:100,state} })
 async function artwork(color) {
@@ -19,7 +26,7 @@ async function pixels(data) {
 }
 
 test('legacy and malformed appearance settings have safe defaults', () => {
-  const expected={showPlayPauseOverlay:true,timelineColor:'#ffffff',fontFamily:'',fontSize:null}
+  const expected={showPlayPauseOverlay:true,autoHidePlayPauseOverlay:false,playPauseOverlayHideDelaySeconds:3,timelineColor:'#ffffff',fontFamily:'',fontSize:null}
   for(const config of [undefined,null,{}, {ciderToken:'fixture'}, {showPlayPauseOverlay:'false',timelineColor:'#fff',fontFamily:42}]) {
     assert.deepEqual(appearance.normalizeAppearance(config),expected)
   }
@@ -27,7 +34,7 @@ test('legacy and malformed appearance settings have safe defaults', () => {
     assert.equal(appearance.normalizeAppearance({timelineColor:color}).timelineColor,'#ffffff')
   }
   assert.deepEqual(appearance.normalizeAppearance({showPlayPauseOverlay:false,timelineColor:' #00FF88 ',fontFamily:'Cider nonexistent font 847193'}),
-    {showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:'',fontSize:null})
+    {...expected,showPlayPauseOverlay:false,timelineColor:'#00ff88'})
 })
 
 test('font size accepts whole pixels in range and defaults to the saved key size otherwise', () => {
@@ -213,6 +220,29 @@ test('font size changes only text, preserves per-key defaults, and fits larger t
 
 const settingsSource=fs.readFileSync(path.join(__dirname,'../com.sonw.cider.plugin/ui/global_config.vue'),'utf8')
 const component=new Function(settingsSource.match(/<script>([\s\S]*?)<\/script>/)[1].replace('export default','return'))()
+
+test('auto-hide controls disable with the master and delay also disables without auto-hide', () => {
+  for(const [model,tag,dependsOnAuto] of [['autoHidePlayPauseOverlay','v-switch',false],['playPauseOverlayHideDelaySeconds','v-text-field',true]]) {
+    const control=settingsSource.match(new RegExp(`<${tag}\\s+v-model="${model}"[\\s\\S]*?/>`))[0]
+    const disabled=new Function('busy','loading','showPlayPauseOverlay','autoHidePlayPauseOverlay','return '+control.match(/:disabled="([^"]+)"/)[1])
+    for(const master of [true,false])for(const auto of [true,false]) {
+      assert.equal(disabled(false,false,master,auto),!master||(dependsOnAuto&&!auto))
+      assert.equal(disabled(true,false,master,auto),true);assert.equal(disabled(false,true,master,auto),true)
+    }
+    if(dependsOnAuto) assert.match(control,/suffix="seconds"/)
+  }
+})
+
+test('delay UI saves numeric seconds and normalizes malformed entries', async () => {
+  const store={config:{ciderToken:'fixture-token'},saves:0}
+  const page=settingsPage(store,async()=>({success:true,fonts:[]}));await page.open()
+  for(const [input,expected] of [['5',5],['30',30],['1',1],['',3],['2.5',3],['31',3],[null,3],[true,3]]) {
+    page.vm.playPauseOverlayHideDelaySeconds=input;await page.vm.saveSettings()
+    assert.equal(store.config.playPauseOverlayHideDelaySeconds,expected)
+    assert.equal(page.vm.playPauseOverlayHideDelaySeconds,expected)
+    assert.equal(store.config.ciderToken,'fixture-token')
+  }
+})
 function settingsPage(store,send) {
   const vm={...component.data(),modelValue:{},$fd:{getConfig:async()=>structuredClone(store.config),setConfig:async config=>{store.config=structuredClone(config);store.saves++;return {status:'success'}},sendToBackend:send}}
   for(const [name,method] of Object.entries(component.methods))vm[name]=method.bind(vm)
@@ -228,17 +258,20 @@ test('one Save persists appearance and token, preserves unrelated config, and su
   assert.equal(page.vm.showPlayPauseOverlay,true);assert.equal(page.vm.fontFamily,'')
   assert.deepEqual(page.vm.fontItems[0],{title:'System Default',value:''})
   assert.equal(page.vm.fontSize,null)
+  assert.equal(page.vm.autoHidePlayPauseOverlay,false);assert.equal(page.vm.playPauseOverlayHideDelaySeconds,3)
+  page.vm.autoHidePlayPauseOverlay=true;page.vm.playPauseOverlayHideDelaySeconds='5'
   page.vm.showPlayPauseOverlay=false;page.vm.timelineColor='#00FF88';page.vm.fontFamily=chosen;page.vm.fontSize='22'
   store.config.newUnrelated='preserve latest'
   await page.vm.testConnection();assert.equal(store.saves,0)
   assert.deepEqual(requests.at(-1),{data:'cider-test-connection',ciderToken:'fixture-token'})
   await page.vm.saveSettings();assert.equal(store.saves,1)
-  assert.deepEqual(store.config,{ciderToken:'fixture-token',unrelated:{keep:true},newUnrelated:'preserve latest',showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
+  assert.deepEqual(store.config,{ciderToken:'fixture-token',unrelated:{keep:true},newUnrelated:'preserve latest',showPlayPauseOverlay:false,autoHidePlayPauseOverlay:true,playPauseOverlayHideDelaySeconds:5,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
   for(let i=0;i<2;i++) {
     page=settingsPage(store,send);await page.open()
     assert.equal(page.vm.showPlayPauseOverlay,false);assert.equal(page.vm.timelineColor,'#00ff88');assert.equal(page.vm.fontFamily,chosen)
     assert.equal(page.vm.fontSize,22)
-    assert.deepEqual(loadAppearance().normalizeAppearance(store.config),{showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
+    assert.equal(page.vm.autoHidePlayPauseOverlay,true);assert.equal(page.vm.playPauseOverlayHideDelaySeconds,5)
+    assert.deepEqual(loadAppearance().normalizeAppearance(store.config),{showPlayPauseOverlay:false,autoHidePlayPauseOverlay:true,playPauseOverlayHideDelaySeconds:5,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
   }
   page.vm.showPlayPauseOverlay=true;await page.vm.saveSettings()
   page=settingsPage(store,send);await page.open();assert.equal(page.vm.showPlayPauseOverlay,true)

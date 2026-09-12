@@ -174,7 +174,7 @@ test('artwork and Unicode stay inside the bitmap, including extremely narrow key
       return new Proxy(context, {
         set(target, name, value) { target[name] = value; return true },
         get(target, name) {
-          if (name === 'fillRect') return (x, y, width, height) => { operations.push({ x, y, width, height }); target.fillRect(x, y, width, height) }
+          if (name === 'fillRect' || name === 'clearRect') return (x, y, width, height) => { operations.push({ x, y, width, height }); target[name](x, y, width, height) }
           if (name === 'drawImage') return (image, ...args) => { const [x, y, width, height] = args.slice(-4); operations.push({ art: true, x, y, width, height }); target.drawImage(image, ...args) }
           if (name === 'fillText') return (text, x, y) => {
             const m = target.measureText(text)
@@ -191,13 +191,21 @@ test('artwork and Unicode stay inside the bitmap, including extremely narrow key
   const artwork = new NativeCanvas(160, 80); artwork.gpu = false
   const ac = artwork.getContext('2d'); ac.fillStyle = '#ff4060'; ac.fillRect(0, 0, 160, 80)
   const data = await artwork.toDataURL('image/png')
-  for (const width of [1, 2, 7, 16, 30, 59, 60, 68, 100, 300, 480, 600, 800]) {
+  for (const width of [1, 2, 7, 16, 30, 59, 60, 68, 100, 120, 180, 300, 480, 600, 800]) {
     for (const iconSize of [-3, 42, 60, Infinity]) {
       for (const art of [undefined, data]) {
         operations = []
         const k = key('nowPlaying', 1, width); k.style.iconSize = iconSize
+        const original = structuredClone(k)
         const image = await loadImage(await boundedRender({ ...track, artwork: art }, k))
         assert.equal(image.width, width); assert.equal(image.height, 60)
+        assert.deepEqual(k, original)
+        const guard = Math.min(2, width - 1)
+        assert.deepEqual(operations.at(-1), { x:width-guard, y:0, width:guard, height:60 })
+        const check = new NativeCanvas(width,60); check.gpu=false
+        const pixels = check.getContext('2d'); pixels.drawImage(image,0,0)
+        if (guard) assert.ok([...pixels.getImageData(width-guard,0,guard,60).data].every(v=>v===0), `right edge at ${width}px must be transparent`)
+        assert.equal(pixels.getImageData(0,0,1,1).data[3],255,'at least one opaque pixel survives even at width 1')
         for (const o of operations) {
           assert.ok(o.x >= 0 && o.y >= 0 && o.width >= 0 && o.height >= 0, JSON.stringify(o))
           assert.ok(o.x + o.width <= width && o.y + o.height <= 60, JSON.stringify({ width, o }))

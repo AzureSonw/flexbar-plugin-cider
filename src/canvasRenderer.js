@@ -2,6 +2,7 @@ import { Canvas, loadImage } from "skia-canvas"
 import { FONT_STACK, getFontStack, normalizeAppearance } from "./appearance"
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" })
+const RIGHT_EDGE_GUARD = 2
 
 function fitText(context, value, maxWidth) {
   const text = String(value || "").replace(/[\r\n]+/g, " ")
@@ -145,5 +146,8 @@ export async function renderNowPlaying(track, key, appearance = {}) {
       context.fillRect(timelineX, 50, timelineWidth * played, 3)
     }
   }
+  // Preserve the exact runtime allocation; leave only an internal transparent edge.
+  const rightGuard = Math.min(RIGHT_EDGE_GUARD, Math.max(0, width - 1))
+  context.clearRect(width - rightGuard, 0, rightGuard, 60)
   return canvas.toDataURL("image/png")
 }

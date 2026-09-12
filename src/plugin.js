@@ -35,6 +35,11 @@ let nowPlayingRevision = 0
 let cachedNowPlaying = null
 let cachedProgress = null
 let metadataRefreshAt = 0
+let overlayVisibleUntil = 0
+let overlayHideTimer = null
+let lastOverlayPlaybackState = null
+let overlayActionPending = false
+let overlaySession = 0
 let volumeRefreshPromise
 let volumeWritePromise
 let pendingVolume = null
@@ -46,9 +51,50 @@ function keyId(serialNumber, key) {
   return `${serialNumber}:${key.uid}`
 }
 
+function cancelOverlayTimeout() {
+  if (overlayHideTimer) clearTimeout(overlayHideTimer)
+  overlayHideTimer = null
+  overlayVisibleUntil = 0
+}
+
+function resetOverlay() {
+  cancelOverlayTimeout()
+  lastOverlayPlaybackState = null
+  overlayActionPending = false
+  overlaySession++
+}
+
+function showTemporaryOverlay() {
+  cancelOverlayTimeout()
+  if (!activeKeys.size || !appearance.showPlayPauseOverlay || !appearance.autoHidePlayPauseOverlay) return
+  overlayVisibleUntil = Date.now() + appearance.playPauseOverlayHideDelaySeconds * 1000
+  const timer = setTimeout(() => {
+    // Ignore a cancelled callback that was already queued before a layout/save.
+    if (overlayHideTimer !== timer) return
+    overlayHideTimer = null
+    overlayVisibleUntil = 0
+    if (activeKeys.size && cachedNowPlaying) void refreshNowPlaying(false, true)
+  }, appearance.playPauseOverlayHideDelaySeconds * 1000)
+  overlayHideTimer = timer
+  timer.unref()
+}
+
+function observeOverlayPlayback(state) {
+  if (state !== "playing" && state !== "paused") {
+    resetOverlay()
+    return
+  }
+  if (state !== lastOverlayPlaybackState || overlayActionPending) showTemporaryOverlay()
+  lastOverlayPlaybackState = state
+  overlayActionPending = false
+}
+
 function applyConfig(config) {
   const nextAppearance = normalizeAppearance(config)
   const appearanceChanged = JSON.stringify(appearance) !== JSON.stringify(nextAppearance)
+  const overlayChanged = appearance.showPlayPauseOverlay !== nextAppearance.showPlayPauseOverlay ||
+    appearance.autoHidePlayPauseOverlay !== nextAppearance.autoHidePlayPauseOverlay ||
+    appearance.playPauseOverlayHideDelaySeconds !== nextAppearance.playPauseOverlayHideDelaySeconds
   appearance = nextAppearance
   const token = typeof config?.ciderToken === "string" ? config.ciderToken : ""
   const tokenChanged = token !== listeningToken
@@ -57,6 +103,11 @@ function applyConfig(config) {
     cachedNowPlaying = null
     cachedProgress = null
     metadataRefreshAt = 0
+    resetOverlay()
+  }
+  if (overlayChanged) {
+    cancelOverlayTimeout()
+    if (lastOverlayPlaybackState) showTemporaryOverlay()
   }
   setCiderToken(config?.ciderToken)
   if (tokenChanged) {
@@ -120,13 +171,18 @@ async function refreshNowPlaying(refreshMetadata = true, redrawCached = false) {
       // A track can change between v2 timing and v1 metadata requests.
       if (mismatchedTrack) metadataRefreshAt = 0
       const track = { ...cachedNowPlaying, progress: cachedNowPlaying.isRunning === false || mismatchedTrack ? null : progress }
+      // Only a fresh authoritative snapshot can reveal an action's resulting state.
+      if (!useCached) observeOverlayPlayback(track.progress?.state)
+      const effectiveOverlayVisible = appearance.showPlayPauseOverlay &&
+        (!appearance.autoHidePlayPauseOverlay || Date.now() < overlayVisibleUntil)
+      const renderAppearance = { ...appearance, showPlayPauseOverlay: effectiveOverlayVisible }
       const frame = JSON.stringify([track.title, track.artist, track.artwork, track.progress?.currentTime, track.progress?.duration,
-        track.progress?.state, appearance.showPlayPauseOverlay, appearance.timelineColor, appearance.fontFamily, appearance.fontSize])
+        track.progress?.state, effectiveOverlayVisible, appearance.timelineColor, appearance.fontFamily, appearance.fontSize])
       for (const [id, entry] of entries) {
         if (!isCurrent()) break
         if (activeKeys.get(id) !== entry || (!forceMetadata && entry.frame === frame)) continue
         const { serialNumber, key } = entry
-        const imageData = await renderNowPlaying(track, key, appearance)
+        const imageData = await renderNowPlaying(track, key, renderAppearance)
         if (!isCurrent() || activeKeys.get(id) !== entry) continue
         const drawKey = {
           ...key,
@@ -283,6 +339,12 @@ function changeVolume(volume) {
 }
 
 plugin.on("plugin.alive", async ({ serialNumber, keys }) => {
+  const replacesNowPlaying = [...activeKeys.values()].some(entry => entry.serialNumber === serialNumber) ||
+    keys.some(key => key.cid === "com.sonw.cider.nowPlaying")
+  if (replacesNowPlaying) {
+    resetOverlay()
+    nowPlayingRevision++
+  }
   // FlexDesigner reuses numeric UIDs on layout upload without sending plugin.dead.
   // Replace this device's snapshot before any asynchronous render can resume.
   for (const [id, entry] of activeKeys) {
@@ -315,6 +377,7 @@ plugin.on("plugin.dead", ({ serialNumber, keys }) => {
     activeVolumeKeys.delete(keyId(serialNumber, key))
     activeListeningModeKeys.delete(keyId(serialNumber, key))
   }
+  if (!activeKeys.size) resetOverlay()
 })
 
 plugin.on("plugin.config.updated", async ({ config }) => {
@@ -356,7 +419,12 @@ plugin.on("plugin.data", async ({ data }) => {
   }
   const action = actions[data?.key?.cid]
   if (!action) return { status: "error" }
+  const session = overlaySession
+  const revision = configRevision
   const success = await action()
+  if (success && action === togglePlayPause && session === overlaySession && revision === configRevision) {
+    overlayActionPending = true
+  }
   void refreshNowPlaying()
   return { status: success ? "success" : "error" }
 })
