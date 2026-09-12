@@ -260,7 +260,7 @@
           "slider": {
             "color": "#ffffff",
             "width": 230,
-            "format": "%0.0f%%",
+            "format": "%0.0f %%",
             "min": 0,
             "max": 100,
             "decimals": 0
