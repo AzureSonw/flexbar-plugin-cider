@@ -77,6 +77,10 @@
         hint="Title size: 12–30 px. The artist line adapts to fit. Leave empty to use the key's font size."
         persistent-hint
       />
+      <v-alert v-if="message" :type="messageType" variant="tonal" class="mt-4">
+        {{ message }}
+      </v-alert>
+      <v-btn class="mt-4" color="primary" :disabled="busy || loading" @click="saveSettings">SAVE SETTINGS</v-btn>
     </v-card-text>
   </v-card>
 </template>

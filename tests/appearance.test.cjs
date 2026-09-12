@@ -198,7 +198,7 @@ test('font size changes only text, preserves per-key defaults, and fits larger t
     assert.match(text[0].font,new RegExp(`\\b${fontSize}px `))
     assert.ok(text.every(line=>line.width<=412))
     if(fontSize>24) {
-      assert.ok(text[0].top>=0);assert.ok(text[0].bottom+1.9<=text[1].top)
+      assert.ok(text[0].top>=0);assert.ok(text[0].bottom<=text[1].top+1e-6,'title and artist must not overlap')
       assert.ok(text[1].bottom<=48+1e-6,`large fonts must leave space above the timeline: ${JSON.stringify({fontSize,text})}`)
     } else assert.deepEqual(text.map(line=>line.y),[15,34])
     assert.deepEqual(current.getImageData(0,0,60,60).data,base.getImageData(0,0,60,60).data)

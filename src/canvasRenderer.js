@@ -112,12 +112,14 @@ export async function renderNowPlaying(track, key, appearance = {}) {
     do {
       context.font = `${artistSize}px ${fontStack}`
       artistBounds = context.measureText(fitText(context, track.artist, textWidth))
-      const height = titleBounds.actualBoundingBoxAscent + titleBounds.actualBoundingBoxDescent
-        + artistBounds.actualBoundingBoxAscent + artistBounds.actualBoundingBoxDescent + 2
+      const titleHeight = titleBounds.actualBoundingBoxAscent + titleBounds.actualBoundingBoxDescent
+      const artistHeight = artistBounds.actualBoundingBoxAscent + artistBounds.actualBoundingBoxDescent
+      const gap = Math.max(0, Math.min(2, 48 - titleHeight - artistHeight))
+      const height = titleHeight + artistHeight + gap
       if (height <= 48 || artistSize <= 11) {
         const top = Math.max(0, (48 - height) / 2)
         titleY = top + titleBounds.actualBoundingBoxAscent
-        artistY = titleY + titleBounds.actualBoundingBoxDescent + 2 + artistBounds.actualBoundingBoxAscent
+        artistY = titleY + titleBounds.actualBoundingBoxDescent + gap + artistBounds.actualBoundingBoxAscent
         break
       }
       artistSize--
