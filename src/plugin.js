@@ -59,15 +59,15 @@ function applyConfig(config) {
     metadataRefreshAt = 0
   }
   setCiderToken(config?.ciderToken)
-  listeningRevision++
   if (tokenChanged) {
+    listeningRevision++
     listeningToken = token
     currentListeningMode = null
     for (const entry of activeListeningModeKeys.values()) entry.visualState = undefined
+    volumeRevision++
+    pendingVolume = null
+    for (const entry of activeVolumeKeys.values()) entry.value = undefined
   }
-  volumeRevision++
-  pendingVolume = null
-  for (const entry of activeVolumeKeys.values()) entry.value = undefined
   return { tokenChanged, appearanceChanged }
 }
 
@@ -121,7 +121,7 @@ async function refreshNowPlaying(refreshMetadata = true, redrawCached = false) {
       if (mismatchedTrack) metadataRefreshAt = 0
       const track = { ...cachedNowPlaying, progress: cachedNowPlaying.isRunning === false || mismatchedTrack ? null : progress }
       const frame = JSON.stringify([track.title, track.artist, track.artwork, track.progress?.currentTime, track.progress?.duration,
-        track.progress?.state, appearance.showPlayPauseOverlay, appearance.timelineColor, appearance.fontFamily])
+        track.progress?.state, appearance.showPlayPauseOverlay, appearance.timelineColor, appearance.fontFamily, appearance.fontSize])
       for (const [id, entry] of entries) {
         if (!isCurrent()) break
         if (activeKeys.get(id) !== entry || (!forceMetadata && entry.frame === frame)) continue

@@ -126,28 +126,29 @@ test('timeline geometry uses smaller saved cover sizes and invalid progress neve
 })
 
 function harness(options = {}) {
-  const handlers = {}, draws = [], timers = new Map(), counters = { progress:0, metadata:0, render:0, volume:0, modes:0, actions:[] }
+  const handlers = {}, draws = [], sliders = [], timers = new Map(), counters = { progress:0, metadata:0, render:0, volume:0, modes:0, actions:[] }
   let time = 0, track = { title:'Track a',artist:'Artist',artwork:'cached-art',isRunning:true,trackId:'a' }, progress = {currentTime:0,duration:100,state:'playing',trackId:'a'}
   const plugin = {
     on(name, fn) { handlers[name] = fn }, getConfig:async () => ({ciderToken:'fixture-token'}), start() {}, transport:{ws:{once(){}}},
     draw:async (serialNumber,key,type,image) => { draws.push({serialNumber,key,type,image}); return options.draw?.() ?? {status:'success'} },
-    setSlider:async () => ({status:'success'}),
+    setSlider:async (serialNumber,key,value) => { sliders.push({serialNumber,key:structuredClone(key),value});return {status:'success'} },
   }
   const params = { ...appearance, plugin,logger:{warn(){}},setCiderToken(){},testConnection:async()=>true,
     getTrackInfo:async()=>{ counters.metadata++; return options.metadata ? options.metadata() : {...track} },
     getPlaybackProgress:async()=>{ counters.progress++; return options.progress ? options.progress() : progress && {...progress} },
     renderNowPlaying:async(t,k,settings)=>{ counters.render++; return options.render ? options.render(t,k,settings) : JSON.stringify({track:t,width:k.width,settings}) },
-    getVolume:async()=>{ counters.volume++; return 0.5 },setVolume:async()=>true,
+    getVolume:async()=>{ counters.volume++; return options.volume?.() ?? 0.5 },setVolume:async()=>true,
     getListeningMode:async()=>{ counters.modes++; return 'off' },setListeningMode:async mode=>mode,
     togglePlayPause:async()=>{ counters.actions.push('playpause'); return true },nextTrack:async()=>{ counters.actions.push('next'); return true },previousTrack:async()=>{ counters.actions.push('previous'); return true },
     Date:class extends Date { static now() { return time } },
     setInterval(fn, ms) { assert.ok([1000,3000].includes(ms)); assert.ok(!timers.has(ms)); timers.set(ms,fn); return {unref(){}} },
   }
-  const runtime = new Function(...Object.keys(params),source('plugin.js') + '\nreturn {idle:()=>refreshPromise}')( ...Object.values(params))
-  return { handlers,draws,counters,timers,options, setProgress(value){progress=value},setTrack(value){track=value},last:()=>JSON.parse(draws.filter(d=>d.type==='base64').at(-1).image),
+  const runtime = new Function(...Object.keys(params),source('plugin.js') + '\nreturn {idle:()=>refreshPromise,controlsIdle:()=>Promise.all([volumeRefreshPromise,listeningRefreshPromise])}')( ...Object.values(params))
+  return { handlers,draws,sliders,counters,timers,options, setProgress(value){progress=value},setTrack(value){track=value},last:()=>JSON.parse(draws.filter(d=>d.type==='base64').at(-1).image),
     alive:(keys,serialNumber='device')=>handlers['plugin.alive']({serialNumber,keys}),
     tick:async()=>{ time+=1000; timers.get(1000)(); await runtime.idle() },
     timer:()=>{time+=1000; timers.get(1000)()}, idle:runtime.idle,
+    controlsTick:async()=>{time+=3000;timers.get(3000)();await runtime.controlsIdle()},
     click:name=>handlers['plugin.data']({data:{key:key(name,1)}}),
   }
 }
@@ -244,7 +245,7 @@ test('layouts A/B/C at all required widths keep timeline updates on current live
 test('appearance saves redraw current keys immediately from cached playback without extra API requests', async () => {
   const h=harness();await h.alive([key('nowPlaying',1),key('volume',2),key('listeningMode',3)])
   const config={ciderToken:'fixture-token'}
-  for(const update of [{showPlayPauseOverlay:false},{timelineColor:'#ff0000'},{fontFamily:appearance.getAvailableFontFamilies()[0]},{showPlayPauseOverlay:true}]) {
+  for(const update of [{showPlayPauseOverlay:false},{timelineColor:'#ff0000'},{fontFamily:appearance.getAvailableFontFamilies()[0]},{fontSize:30},{fontSize:18},{fontSize:null},{showPlayPauseOverlay:true}]) {
     Object.assign(config,update)
     const calls={progress:h.counters.progress,metadata:h.counters.metadata,volume:h.counters.volume,modes:h.counters.modes}
     h.draws.length=0
@@ -255,6 +256,27 @@ test('appearance saves redraw current keys immediately from cached playback with
     const count=h.draws.length;await h.handlers['plugin.config.updated']({config});await h.tick()
     assert.equal(h.draws.length,count,'saving unchanged appearance must not continuously redraw')
   }
+})
+
+test('appearance saves leave native Volume untouched, including the next poll and later volume updates', async () => {
+  const h=harness(),volume=key('volume',2)
+  volume.style={...volume.style,font:'Existing Slider Font',fontSize:19,slider:{format:'%0.0f %%'}}
+  const saved=structuredClone(volume)
+  await h.alive([key('nowPlaying',1),volume,key('listeningMode',3)])
+  assert.equal(h.sliders.length,1)
+  for(const fontFamily of ['',...appearance.getAvailableFontFamilies().slice(0,3)]) {
+    h.draws.length=0
+    await h.handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',fontFamily,fontSize:18}})
+    await h.controlsTick()
+    assert.equal(h.sliders.length,1,'saving appearance must not resend the native slider')
+    assert.ok(h.draws.every(d=>d.key.uid===1),'only Now Playing should be drawn')
+    assert.deepEqual(volume,saved)
+  }
+  h.options.volume=()=>0.75;await h.controlsTick()
+  assert.equal(h.sliders.length,2);assert.equal(h.sliders.at(-1).value,75)
+  assert.deepEqual(h.sliders.at(-1).key,saved,'external volume sync must retain the slider font and style')
+  await h.handlers['plugin.config.updated']({config:{ciderToken:'changed-fixture',fontFamily:'',fontSize:18}})
+  assert.equal(h.sliders.length,3,'changing the connection still resynchronizes Volume')
 })
 
 test('equal-time state changes invalidate frames and Now Playing clicks work in all overlay/state combinations', async () => {

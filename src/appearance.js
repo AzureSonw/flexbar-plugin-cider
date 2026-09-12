@@ -14,10 +14,12 @@ function availableFont(value) {
 
 export function normalizeAppearance(config) {
   const color = typeof config?.timelineColor === "string" ? config.timelineColor.trim() : ""
+  const size = typeof config?.fontSize === "number" || typeof config?.fontSize === "string" ? Number(config.fontSize) : NaN
   return {
     showPlayPauseOverlay: config?.showPlayPauseOverlay !== false,
     timelineColor: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : "#ffffff",
     fontFamily: availableFont(config?.fontFamily),
+    fontSize: Number.isInteger(size) && size >= 12 && size <= 30 ? size : null,
   }
 }
 

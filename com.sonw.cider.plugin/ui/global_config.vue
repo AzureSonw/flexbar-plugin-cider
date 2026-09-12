@@ -63,6 +63,20 @@
         persistent-hint
         no-data-text="No matching fonts"
       />
+      <v-text-field
+        v-model="fontSize"
+        label="Now Playing Font Size"
+        type="number"
+        min="12"
+        max="30"
+        step="1"
+        suffix="px"
+        clearable
+        class="mt-4"
+        :disabled="busy || loading"
+        hint="Title size: 12–30 px. The artist line adapts to fit. Leave empty to use the key's font size."
+        persistent-hint
+      />
     </v-card-text>
   </v-card>
 </template>
@@ -73,7 +87,7 @@ export default {
   data() {
     return {
       ciderToken: "", loading: true, busy: false, message: "", messageType: "info",
-      showPlayPauseOverlay: true, timelineColor: "#ffffff", fontFamily: "",
+      showPlayPauseOverlay: true, timelineColor: "#ffffff", fontFamily: "", fontSize: null,
       fonts: [], fontsLoading: true, fontMessage: "",
     }
   },
@@ -85,6 +99,10 @@ export default {
     fontItems() {
       return [{ title: "System Default", value: "" }, ...this.fonts.map(family => ({ title: family, value: family }))]
     },
+    normalizedFontSize() {
+      const size = typeof this.fontSize === "number" || typeof this.fontSize === "string" ? Number(this.fontSize) : NaN
+      return Number.isInteger(size) && size >= 12 && size <= 30 ? size : null
+    },
   },
   async mounted() {
     try {
@@ -94,6 +112,8 @@ export default {
       this.timelineColor = typeof config?.timelineColor === "string" ? config.timelineColor : "#ffffff"
       this.timelineColor = this.normalizedColor
       this.fontFamily = typeof config?.fontFamily === "string" ? config.fontFamily : ""
+      this.fontSize = config?.fontSize
+      this.fontSize = this.normalizedFontSize
     } catch {
       this.message = "Could not load settings. Reopen this page to try again."
       this.messageType = "error"
@@ -129,11 +149,13 @@ export default {
           showPlayPauseOverlay: this.showPlayPauseOverlay !== false,
           timelineColor: this.normalizedColor,
           fontFamily: this.fontsLoading || this.fonts.includes(this.fontFamily) ? this.fontFamily : "",
+          fontSize: this.normalizedFontSize,
         }
         const result = await this.$fd.setConfig(config)
         if (result?.status === "error") throw new Error("Save failed")
         this.modelValue.config = config
         this.timelineColor = config.timelineColor
+        this.fontSize = config.fontSize
         this.message = "Settings saved"
         this.messageType = "success"
       } catch {

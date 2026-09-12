@@ -95,16 +95,40 @@ export async function renderNowPlaying(track, key, appearance = {}) {
 
   const textWidth = Math.max(0, textRight - textLeft)
   const textX = textLeft + textWidth / 2
-  const fontSize = Math.min(24, Math.max(12, Number(key.style?.fontSize) || 24))
+  const fontSize = settings.fontSize ?? Math.min(24, Math.max(12, Number(key.style?.fontSize) || 24))
   context.textAlign = "center"
   context.textBaseline = "middle"
   context.fillStyle = key.style?.fgColor || "#ffffff"
   context.font = `${fontSize}px ${fontStack}`
-  if (textWidth > 0) context.fillText(fitText(context, track.title, textWidth), textX, track.artist ? 15 : 26)
+  const title = fitText(context, track.title, textWidth)
+  let titleY = track.artist ? 15 : 26
+  let artistY = 34
+  let artistSize = Math.max(11, fontSize - 4)
+  // Keep the established layout at normal sizes. Larger titles share the
+  // space above the timeline with an artist line sized to its actual glyphs.
+  if (track.artist && fontSize > 24 && textWidth > 0) {
+    const titleBounds = context.measureText(title)
+    let artistBounds
+    do {
+      context.font = `${artistSize}px ${fontStack}`
+      artistBounds = context.measureText(fitText(context, track.artist, textWidth))
+      const height = titleBounds.actualBoundingBoxAscent + titleBounds.actualBoundingBoxDescent
+        + artistBounds.actualBoundingBoxAscent + artistBounds.actualBoundingBoxDescent + 2
+      if (height <= 48 || artistSize <= 11) {
+        const top = Math.max(0, (48 - height) / 2)
+        titleY = top + titleBounds.actualBoundingBoxAscent
+        artistY = titleY + titleBounds.actualBoundingBoxDescent + 2 + artistBounds.actualBoundingBoxAscent
+        break
+      }
+      artistSize--
+    } while (true)
+    context.font = `${fontSize}px ${fontStack}`
+  }
+  if (textWidth > 0) context.fillText(title, textX, titleY)
   if (track.artist && textWidth > 0) {
     context.fillStyle = "#bdbdbd"
-    context.font = `${Math.max(11, fontSize - 4)}px ${fontStack}`
-    context.fillText(fitText(context, track.artist, textWidth), textX, 34)
+    context.font = `${artistSize}px ${fontStack}`
+    context.fillText(fitText(context, track.artist, textWidth), textX, artistY)
   }
 
   const timelineX = coverX + coverSize + 45

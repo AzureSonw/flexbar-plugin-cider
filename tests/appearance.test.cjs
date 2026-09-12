@@ -19,7 +19,7 @@ async function pixels(data) {
 }
 
 test('legacy and malformed appearance settings have safe defaults', () => {
-  const expected={showPlayPauseOverlay:true,timelineColor:'#ffffff',fontFamily:''}
+  const expected={showPlayPauseOverlay:true,timelineColor:'#ffffff',fontFamily:'',fontSize:null}
   for(const config of [undefined,null,{}, {ciderToken:'fixture'}, {showPlayPauseOverlay:'false',timelineColor:'#fff',fontFamily:42}]) {
     assert.deepEqual(appearance.normalizeAppearance(config),expected)
   }
@@ -27,7 +27,12 @@ test('legacy and malformed appearance settings have safe defaults', () => {
     assert.equal(appearance.normalizeAppearance({timelineColor:color}).timelineColor,'#ffffff')
   }
   assert.deepEqual(appearance.normalizeAppearance({showPlayPauseOverlay:false,timelineColor:' #00FF88 ',fontFamily:'Cider nonexistent font 847193'}),
-    {showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:''})
+    {showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:'',fontSize:null})
+})
+
+test('font size accepts whole pixels in range and defaults to the saved key size otherwise', () => {
+  for(const value of [12,18,24,30,'12','26','30']) assert.equal(appearance.normalizeAppearance({fontSize:value}).fontSize,Number(value))
+  for(const value of [undefined,null,'',false,true,[],{},11,31,20.5,'24px',NaN,Infinity]) assert.equal(appearance.normalizeAppearance({fontSize:value}).fontSize,null)
 })
 
 test('font enumeration uses Skia families, filters data, and validates saved selections with has', () => {
@@ -167,6 +172,45 @@ test('real installed fonts render Unicode and grapheme-safe ellipsis without cha
   }
 })
 
+test('font size changes only text, preserves per-key defaults, and fits larger titles above the timeline', async () => {
+  const text=[]
+  class RecordingCanvas extends Canvas {
+    getContext(type) {
+      const context=super.getContext(type)
+      return new Proxy(context,{
+        set(target,name,value){target[name]=value;return true},
+        get(target,name){
+          if(name==='fillText') return (value,x,y)=>{
+            const bounds=target.measureText(value)
+            text.push({font:target.font,x,y,top:y-bounds.actualBoundingBoxAscent,bottom:y+bounds.actualBoundingBoxDescent,width:bounds.width})
+            target.fillText(value,x,y)
+          }
+          const value=target[name];return typeof value==='function'?value.bind(target):value
+        },
+      })
+    }
+  }
+  const draw=renderer(RecordingCanvas),art=await artwork('#997744'),t={...track('playing'),artwork:art}
+  const k=key(480),original=structuredClone(k),base=await pixels(await draw(t,k))
+  for(const fontSize of [12,18,24,26,30]) {
+    text.length=0
+    const current=await pixels(await draw(t,k,{fontSize}))
+    assert.match(text[0].font,new RegExp(`\\b${fontSize}px `))
+    assert.ok(text.every(line=>line.width<=412))
+    if(fontSize>24) {
+      assert.ok(text[0].top>=0);assert.ok(text[0].bottom+1.9<=text[1].top)
+      assert.ok(text[1].bottom<=48,'large fonts must leave space above the timeline')
+    } else assert.deepEqual(text.map(line=>line.y),[15,34])
+    assert.deepEqual(current.getImageData(0,0,60,60).data,base.getImageData(0,0,60,60).data)
+    assert.deepEqual(current.getImageData(104,50,331,3).data,base.getImageData(104,50,331,3).data)
+    assert.deepEqual(k,original)
+  }
+  k.style.fontSize=18;text.length=0;await draw(t,k)
+  assert.match(text[0].font,/\b18px /)
+  text.length=0;await draw(t,k,{fontSize:null})
+  assert.match(text[0].font,/\b18px /)
+})
+
 const settingsSource=fs.readFileSync(path.join(__dirname,'../com.sonw.cider.plugin/ui/global_config.vue'),'utf8')
 const component=new Function(settingsSource.match(/<script>([\s\S]*?)<\/script>/)[1].replace('export default','return'))()
 function settingsPage(store,send) {
@@ -183,20 +227,24 @@ test('one Save persists appearance and token, preserves unrelated config, and su
   let page=settingsPage(store,send);await page.open()
   assert.equal(page.vm.showPlayPauseOverlay,true);assert.equal(page.vm.fontFamily,'')
   assert.deepEqual(page.vm.fontItems[0],{title:'System Default',value:''})
-  page.vm.showPlayPauseOverlay=false;page.vm.timelineColor='#00FF88';page.vm.fontFamily=chosen
+  assert.equal(page.vm.fontSize,null)
+  page.vm.showPlayPauseOverlay=false;page.vm.timelineColor='#00FF88';page.vm.fontFamily=chosen;page.vm.fontSize='22'
   store.config.newUnrelated='preserve latest'
   await page.vm.testConnection();assert.equal(store.saves,0)
   assert.deepEqual(requests.at(-1),{data:'cider-test-connection',ciderToken:'fixture-token'})
   await page.vm.saveSettings();assert.equal(store.saves,1)
-  assert.deepEqual(store.config,{ciderToken:'fixture-token',unrelated:{keep:true},newUnrelated:'preserve latest',showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:chosen})
+  assert.deepEqual(store.config,{ciderToken:'fixture-token',unrelated:{keep:true},newUnrelated:'preserve latest',showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
   for(let i=0;i<2;i++) {
     page=settingsPage(store,send);await page.open()
     assert.equal(page.vm.showPlayPauseOverlay,false);assert.equal(page.vm.timelineColor,'#00ff88');assert.equal(page.vm.fontFamily,chosen)
-    assert.deepEqual(loadAppearance().normalizeAppearance(store.config),{showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:chosen})
+    assert.equal(page.vm.fontSize,22)
+    assert.deepEqual(loadAppearance().normalizeAppearance(store.config),{showPlayPauseOverlay:false,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
   }
   page.vm.showPlayPauseOverlay=true;await page.vm.saveSettings()
   page=settingsPage(store,send);await page.open();assert.equal(page.vm.showPlayPauseOverlay,true)
   assert.equal(store.config.ciderToken,'fixture-token')
+  page.vm.fontSize=null;await page.vm.saveSettings()
+  page=settingsPage(store,send);await page.open();assert.equal(page.vm.fontSize,null)
 })
 
 test('font failure or removed font leaves System Default and working token controls', async () => {
