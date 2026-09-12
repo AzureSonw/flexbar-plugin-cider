@@ -79,7 +79,7 @@ Match FlexDesigner's architecture: Intel FlexDesigner running under Rosetta need
 
 | Problem | What to check |
 | --- | --- |
-| Connection test fails | Keep Cider running; check **Settings → Connectivity → External Applications → RPC Server**. Copy the token again from **Manage External Application Access to Cider**, paste it correctly, test, then click **SAVE SETTINGS**. |
+| Connection test fails | Keep Cider running; check **Settings → Connectivity → External Applications → RPC Server**. Copy the token again from **Manage External Application Access to Cider**, paste it correctly, test, then click **SAVE SETTINGS**. Also make sure you installed the package for your platform and architecture: installing the Windows package on macOS, or the wrong macOS architecture package, can also cause the connection test to fail. |
 | **Set Cider Token** appears | Configure and save the token in **FlexDesigner → Settings → Application → Cider**. |
 | An update appears inactive | Save and upload the layout, then restart FlexDesigner to clear an older linked backend. |
 | Missing characters | Install a system font for the affected language; fonts are not bundled. |
