@@ -1,6 +1,6 @@
 import { Canvas, loadImage } from "skia-canvas"
+import { FONT_STACK, getFontStack, normalizeAppearance } from "./appearance"
 
-const FONT_STACK = '"Microsoft YaHei", "Microsoft JhengHei", "Yu Gothic", "Malgun Gothic", "Segoe UI", sans-serif'
 const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" })
 
 function fitText(context, value, maxWidth) {
@@ -11,7 +11,38 @@ function fitText(context, value, maxWidth) {
   return characters.length ? `${characters.join("")}…` : ""
 }
 
-export async function renderNowPlaying(track, key) {
+function drawPlaybackOverlay(context, state, coverX, coverY, coverSize) {
+  if (coverSize <= 0 || (state !== "playing" && state !== "paused")) return
+  const iconSize = Math.min(28, coverSize * 0.55)
+  const scale = iconSize / 24
+  context.save()
+  // Clip even the glow to the actual artwork, including very narrow keys.
+  context.beginPath()
+  context.rect(coverX, coverY, coverSize, coverSize)
+  context.clip()
+  context.translate(coverX + coverSize / 2, coverY + coverSize / 2)
+  context.fillStyle = "rgba(0, 0, 0, 0.28)"
+  context.beginPath()
+  context.arc(0, 0, iconSize * 0.62, 0, Math.PI * 2)
+  context.fill()
+  context.fillStyle = "#ffffff"
+  context.shadowColor = "#ffffff"
+  context.shadowBlur = Math.min(8, iconSize * 0.3)
+  context.beginPath()
+  if (state === "paused") {
+    context.moveTo(-5 * scale, -8 * scale)
+    context.lineTo(7 * scale, 0)
+    context.lineTo(-5 * scale, 8 * scale)
+    context.closePath()
+  } else {
+    context.roundRect(-5 * scale, -8 * scale, 4 * scale, 16 * scale, 2 * scale)
+    context.roundRect(scale, -8 * scale, 4 * scale, 16 * scale, 2 * scale)
+  }
+  context.fill()
+  context.restore()
+}
+
+export async function renderNowPlaying(track, key, appearance = {}) {
   const width = Number(key.width ?? key.style?.width)
   // Never invent or round up a drawing allocation. Runtime and style widths
   // agree in FlexDesigner; skip an inconsistent snapshot instead of guessing.
@@ -22,6 +53,8 @@ export async function renderNowPlaying(track, key) {
   const canvas = new Canvas(width, 60)
   canvas.gpu = false
   const context = canvas.getContext("2d")
+  const settings = normalizeAppearance(appearance)
+  const fontStack = getFontStack(settings.fontFamily)
   context.fillStyle = key.style?.bgColor || "#000000"
   context.fillRect(0, 0, width, 60)
 
@@ -60,17 +93,21 @@ export async function renderNowPlaying(track, key) {
     }
   }
 
+  if (settings.showPlayPauseOverlay) {
+    drawPlaybackOverlay(context, track.progress?.state, coverX, coverY, coverSize)
+  }
+
   const textWidth = Math.max(0, textRight - textLeft)
   const textX = textLeft + textWidth / 2
   const fontSize = Math.min(24, Math.max(12, Number(key.style?.fontSize) || 24))
   context.textAlign = "center"
   context.textBaseline = "middle"
   context.fillStyle = key.style?.fgColor || "#ffffff"
-  context.font = `${fontSize}px ${FONT_STACK}`
+  context.font = `${fontSize}px ${fontStack}`
   if (textWidth > 0) context.fillText(fitText(context, track.title, textWidth), textX, track.artist ? 15 : 26)
   if (track.artist && textWidth > 0) {
     context.fillStyle = "#bdbdbd"
-    context.font = `${Math.max(11, fontSize - 4)}px ${FONT_STACK}`
+    context.font = `${Math.max(11, fontSize - 4)}px ${fontStack}`
     context.fillText(fitText(context, track.artist, textWidth), textX, 34)
   }
 
@@ -82,7 +119,7 @@ export async function renderNowPlaying(track, key) {
     context.fillStyle = "#404040"
     context.fillRect(timelineX, 50, timelineWidth, 3)
     if (played > 0) {
-      context.fillStyle = "#ffffff"
+      context.fillStyle = settings.timelineColor
       context.fillRect(timelineX, 50, timelineWidth * played, 3)
     }
   }

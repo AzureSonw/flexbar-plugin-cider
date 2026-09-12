@@ -1,6 +1,7 @@
 import { plugin, logger } from "@eniac/flexdesigner"
 import { setCiderToken, testConnection, getTrackInfo, togglePlayPause, nextTrack, previousTrack, getVolume, setVolume, getListeningMode, setListeningMode, getPlaybackProgress } from "./musicControl"
 import { renderNowPlaying } from "./canvasRenderer"
+import { getAvailableFontFamilies, normalizeAppearance } from "./appearance"
 
 const activeKeys = new Map()
 const activeVolumeKeys = new Map()
@@ -27,6 +28,8 @@ let pendingListeningWrites = 0
 let configRevision = 0
 let refreshPromise
 let refreshAgain = false
+let redrawAgain = false
+let appearance = normalizeAppearance()
 let renderErrorReported = false
 let nowPlayingRevision = 0
 let cachedNowPlaying = null
@@ -44,14 +47,20 @@ function keyId(serialNumber, key) {
 }
 
 function applyConfig(config) {
+  const nextAppearance = normalizeAppearance(config)
+  const appearanceChanged = JSON.stringify(appearance) !== JSON.stringify(nextAppearance)
+  appearance = nextAppearance
+  const token = typeof config?.ciderToken === "string" ? config.ciderToken : ""
+  const tokenChanged = token !== listeningToken
   configRevision++
-  cachedNowPlaying = null
-  cachedProgress = null
-  metadataRefreshAt = 0
+  if (tokenChanged) {
+    cachedNowPlaying = null
+    cachedProgress = null
+    metadataRefreshAt = 0
+  }
   setCiderToken(config?.ciderToken)
   listeningRevision++
-  const token = typeof config?.ciderToken === "string" ? config.ciderToken : ""
-  if (token !== listeningToken) {
+  if (tokenChanged) {
     listeningToken = token
     currentListeningMode = null
     for (const entry of activeListeningModeKeys.values()) entry.visualState = undefined
@@ -59,6 +68,7 @@ function applyConfig(config) {
   volumeRevision++
   pendingVolume = null
   for (const entry of activeVolumeKeys.values()) entry.value = undefined
+  return { tokenChanged, appearanceChanged }
 }
 
 async function loadConfig() {
@@ -71,10 +81,14 @@ async function loadConfig() {
   }
 }
 
-async function refreshNowPlaying(refreshMetadata = true) {
+async function refreshNowPlaying(refreshMetadata = true, redrawCached = false) {
   if (refreshMetadata) {
     nowPlayingRevision++
     refreshAgain = true
+  }
+  if (redrawCached) {
+    nowPlayingRevision++
+    redrawAgain = true
   }
   // Timer ticks never queue extra work behind a slow API, image, or device.
   if (refreshPromise) return refreshPromise
@@ -82,18 +96,20 @@ async function refreshNowPlaying(refreshMetadata = true) {
     do {
       const forceMetadata = refreshAgain
       refreshAgain = false
+      const useCached = redrawAgain && !forceMetadata && cachedNowPlaying
+      redrawAgain = false
       if (!activeKeys.size) break
       const revision = configRevision
       const displayRevision = nowPlayingRevision
       const entries = [...activeKeys]
       const isCurrent = () => revision === configRevision && displayRevision === nowPlayingRevision
-      const progress = await getPlaybackProgress()
+      const progress = useCached ? cachedProgress : await getPlaybackProgress()
       if (!isCurrent()) continue
       const trackChanged = progress && (
         (progress.trackId && progress.trackId !== cachedNowPlaying?.trackId) ||
         (cachedProgress && (progress.duration !== cachedProgress.duration || progress.currentTime < cachedProgress.currentTime))
       )
-      if (forceMetadata || !cachedNowPlaying || Date.now() >= metadataRefreshAt || trackChanged || (cachedProgress && !progress)) {
+      if (!useCached && (forceMetadata || !cachedNowPlaying || Date.now() >= metadataRefreshAt || trackChanged || (cachedProgress && !progress))) {
         const metadata = await getTrackInfo()
         if (!isCurrent()) continue
         cachedNowPlaying = metadata
@@ -104,12 +120,13 @@ async function refreshNowPlaying(refreshMetadata = true) {
       // A track can change between v2 timing and v1 metadata requests.
       if (mismatchedTrack) metadataRefreshAt = 0
       const track = { ...cachedNowPlaying, progress: cachedNowPlaying.isRunning === false || mismatchedTrack ? null : progress }
-      const frame = JSON.stringify([track.title, track.artist, track.artwork, track.progress?.currentTime, track.progress?.duration])
+      const frame = JSON.stringify([track.title, track.artist, track.artwork, track.progress?.currentTime, track.progress?.duration,
+        track.progress?.state, appearance.showPlayPauseOverlay, appearance.timelineColor, appearance.fontFamily])
       for (const [id, entry] of entries) {
         if (!isCurrent()) break
         if (activeKeys.get(id) !== entry || (!forceMetadata && entry.frame === frame)) continue
         const { serialNumber, key } = entry
-        const imageData = await renderNowPlaying(track, key)
+        const imageData = await renderNowPlaying(track, key, appearance)
         if (!isCurrent() || activeKeys.get(id) !== entry) continue
         const drawKey = {
           ...key,
@@ -119,7 +136,7 @@ async function refreshNowPlaying(refreshMetadata = true) {
         if (result?.status !== "error" && isCurrent() && activeKeys.get(id) === entry) entry.frame = frame
       }
       renderErrorReported = false
-    } while (refreshAgain)
+    } while (refreshAgain || redrawAgain)
   })().catch(() => {
     if (!renderErrorReported) logger.warn("Could not update the Cider display.")
     renderErrorReported = true
@@ -301,11 +318,20 @@ plugin.on("plugin.dead", ({ serialNumber, keys }) => {
 })
 
 plugin.on("plugin.config.updated", async ({ config }) => {
-  applyConfig(config)
-  await Promise.all([refreshNowPlaying(), refreshVolume(), refreshListeningMode()])
+  const { tokenChanged, appearanceChanged } = applyConfig(config)
+  if (tokenChanged) {
+    await Promise.all([refreshNowPlaying(), refreshVolume(), refreshListeningMode()])
+  } else if (appearanceChanged) {
+    // Reuse the existing playback snapshot; appearance changes need no API poll.
+    await refreshNowPlaying(false, true)
+  }
 })
 
 plugin.on("ui.message", async (payload) => {
+  if (payload?.data === "cider-list-fonts") {
+    try { return { success: true, fonts: getAvailableFontFamilies() } }
+    catch { return { success: false, fonts: [] } }
+  }
   if (payload?.data !== "cider-test-connection") return { success: false }
   return { success: await testConnection(payload.ciderToken) }
 })

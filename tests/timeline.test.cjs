@@ -3,8 +3,9 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { Canvas: NativeCanvas, loadImage } = require('skia-canvas')
+const { appearance, renderer } = require('./support.cjs')
 const source = name => fs.readFileSync(path.join(__dirname, '../src', name), 'utf8').replace(/^import .*\r?\n/gm, '')
-const render = new Function('Canvas', 'loadImage', source('canvasRenderer.js').replace('export async function', 'async function') + '\nreturn renderNowPlaying')(NativeCanvas, loadImage)
+const render = renderer()
 const key = (name, uid, width = 480) => ({ uid, cid: 'com.sonw.cider.' + name, width, style: { width, iconSize: 42, fontSize: 24 }, cfg: { keyType: name === 'volume' ? 'slider' : 'default' } })
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)) }
@@ -106,7 +107,7 @@ test('timeline geometry uses smaller saved cover sizes and invalid progress neve
       })
     }
   }
-  const draw = new Function('Canvas','loadImage',source('canvasRenderer.js').replace('export async function','async function') + '\nreturn renderNowPlaying')(Canvas,loadImage)
+  const draw = renderer(Canvas)
   for (const [iconSize, start, center] of [[24,86,257],[42,104,266],[60,104,275]]) {
     rects.length = text.length = 0
     await draw({ title:'Title',artist:'Artist',progress:{ currentTime:50,duration:100 } }, { width:480, style:{ width:480,iconSize } })
@@ -132,10 +133,10 @@ function harness(options = {}) {
     draw:async (serialNumber,key,type,image) => { draws.push({serialNumber,key,type,image}); return options.draw?.() ?? {status:'success'} },
     setSlider:async () => ({status:'success'}),
   }
-  const params = { plugin,logger:{warn(){}},setCiderToken(){},testConnection:async()=>true,
+  const params = { ...appearance, plugin,logger:{warn(){}},setCiderToken(){},testConnection:async()=>true,
     getTrackInfo:async()=>{ counters.metadata++; return options.metadata ? options.metadata() : {...track} },
     getPlaybackProgress:async()=>{ counters.progress++; return options.progress ? options.progress() : progress && {...progress} },
-    renderNowPlaying:async(t,k)=>{ counters.render++; return options.render ? options.render(t,k) : JSON.stringify({track:t,width:k.width}) },
+    renderNowPlaying:async(t,k,settings)=>{ counters.render++; return options.render ? options.render(t,k,settings) : JSON.stringify({track:t,width:k.width,settings}) },
     getVolume:async()=>{ counters.volume++; return 0.5 },setVolume:async()=>true,
     getListeningMode:async()=>{ counters.modes++; return 'off' },setListeningMode:async mode=>mode,
     togglePlayPause:async()=>{ counters.actions.push('playpause'); return true },nextTrack:async()=>{ counters.actions.push('next'); return true },previousTrack:async()=>{ counters.actions.push('previous'); return true },
@@ -162,7 +163,7 @@ test('one-second timing preserves pause/resume, refreshes metadata every three s
   h.setProgress({currentTime:3,duration:100,state:'paused',trackId:'a'})
   const count = h.draws.length
   for (let i=0;i<4;i++) await h.tick()
-  assert.equal(h.draws.length,count,'paused snapshots should neither advance nor redraw identical pixels')
+  assert.equal(h.draws.length,count+1,'pause changes the overlay once; repeated paused snapshots should not redraw')
   h.setProgress({currentTime:4,duration:100,state:'playing',trackId:'a'}); await h.tick()
   assert.equal(h.last().track.progress.currentTime,4)
   for (const [name,action] of [['nowPlaying','playpause'],['playPause','playpause'],['next','next'],['previous','previous']]) {
@@ -238,4 +239,76 @@ test('layouts A/B/C at all required widths keep timeline updates on current live
   await h.handlers['plugin.dead']({serialNumber:'other',keys:[key('nowPlaying',7,300)]})
   h.draws.length=0; const before={...h.counters}; await h.tick()
   assert.equal(h.counters.progress,before.progress); assert.equal(h.counters.metadata,before.metadata); assert.equal(h.counters.render,before.render)
+})
+
+test('appearance saves redraw current keys immediately from cached playback without extra API requests', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1),key('volume',2),key('listeningMode',3)])
+  const config={ciderToken:'fixture-token'}
+  for(const update of [{showPlayPauseOverlay:false},{timelineColor:'#ff0000'},{fontFamily:appearance.getAvailableFontFamilies()[0]},{showPlayPauseOverlay:true}]) {
+    Object.assign(config,update)
+    const calls={progress:h.counters.progress,metadata:h.counters.metadata,volume:h.counters.volume,modes:h.counters.modes}
+    h.draws.length=0
+    await h.handlers['plugin.config.updated']({config})
+    assert.equal(h.draws.length,1);assert.equal(h.draws[0].key.uid,1)
+    assert.deepEqual(h.last().settings,appearance.normalizeAppearance(config))
+    assert.deepEqual({progress:h.counters.progress,metadata:h.counters.metadata,volume:h.counters.volume,modes:h.counters.modes},calls)
+    const count=h.draws.length;await h.handlers['plugin.config.updated']({config});await h.tick()
+    assert.equal(h.draws.length,count,'saving unchanged appearance must not continuously redraw')
+  }
+})
+
+test('equal-time state changes invalidate frames and Now Playing clicks work in all overlay/state combinations', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1)])
+  for(const showPlayPauseOverlay of [true,false]) {
+    await h.handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',showPlayPauseOverlay}})
+    for(const state of ['playing','paused','stopped','invalid',undefined]) {
+      h.setProgress({currentTime:0,duration:100,state,trackId:'a'})
+      await h.tick()
+      assert.equal(h.last().track.progress.state,state)
+      const count=h.draws.length;await h.tick();assert.equal(h.draws.length,count)
+      const clicks=h.counters.actions.length
+      assert.equal((await h.click('nowPlaying')).status,'success');await h.idle()
+      assert.equal(h.counters.actions.length,clicks+1);assert.equal(h.counters.actions.at(-1),'playpause')
+    }
+  }
+  assert.equal((await h.click('playPause')).status,'success');await h.idle()
+})
+
+test('font command returns only available families and keeps connection testing independent', async () => {
+  const h=harness()
+  assert.deepEqual(await h.handlers['ui.message']({data:'cider-list-fonts'}),{success:true,fonts:appearance.getAvailableFontFamilies()})
+  assert.deepEqual(await h.handlers['ui.message']({data:'cider-test-connection',ciderToken:'fixture-token',timelineColor:'invalid'}),{success:true})
+  assert.equal(h.counters.progress,0);assert.equal(h.counters.metadata,0)
+})
+
+test('appearance redraw cannot send an old in-flight frame to reused layout UIDs', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1,800)])
+  const entered=deferred(),gate=deferred()
+  h.options.render=async(t,k,settings)=>{entered.resolve();await gate.promise;return JSON.stringify({track:t,width:k.width,settings})}
+  h.draws.length=0
+  const saving=h.handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',showPlayPauseOverlay:false,timelineColor:'#0088ff'}})
+  await entered.promise
+  const replaced=h.alive([key('previous',1),key('volume',2),key('nowPlaying',3,300)])
+  h.options.render=undefined;gate.resolve();await Promise.all([saving,replaced])
+  assert.ok(h.draws.length);assert.ok(h.draws.every(d=>d.key.uid===3&&d.key.width===300))
+  for(const update of [{showPlayPauseOverlay:false},{timelineColor:'#00ff88'},{fontFamily:appearance.getAvailableFontFamilies()[0]}]) {
+    h.draws.length=0
+    await h.handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',...update}})
+    assert.ok(h.draws.length);assert.ok(h.draws.every(d=>d.key.uid===3))
+  }
+  await h.alive([]);h.draws.length=0
+  await h.handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',timelineColor:'#ff0000'}})
+  assert.equal(h.draws.length,0)
+})
+
+test('an appearance save invalidates an older polling snapshot and uses only its queued cached redraw', async () => {
+  const h=harness();await h.alive([key('nowPlaying',1)])
+  const gate=deferred();h.options.progress=()=>gate.promise
+  h.draws.length=0;h.timer()
+  const before=h.counters.progress
+  const saving=h.handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',showPlayPauseOverlay:false}})
+  h.options.progress=undefined;gate.resolve({currentTime:99,duration:100,state:'playing',trackId:'a'})
+  await saving
+  assert.equal(h.counters.progress,before);assert.equal(h.draws.length,1)
+  assert.equal(h.last().settings.showPlayPauseOverlay,false);assert.equal(h.last().track.progress.currentTime,0)
 })

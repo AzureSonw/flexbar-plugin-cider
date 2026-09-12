@@ -2,6 +2,7 @@ const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
+const { appearance } = require('./support.cjs')
 const source = name => fs.readFileSync(path.join(__dirname, '..', 'src', name), 'utf8').replace(/^import .*\r?\n/gm, '')
 const modes = ['off', 'game', 'antifatigue']
 const names = ['listeningMode', 'listeningModeOff', 'listeningModeGaming', 'listeningModeUnwind']
@@ -95,7 +96,7 @@ function harness() {
     draw: async (serialNumber, key, type, image) => { draws.push({ serialNumber, key, type, image }); return draw(key) },
     setSlider: async (serialNumber, key, value) => { sliders.push({ serialNumber, key, value }); return { status: 'success' } },
   }
-  const params = { plugin, logger: { warn() {} }, setCiderToken() {}, testConnection: async () => true,
+  const params = { ...appearance, plugin, logger: { warn() {} }, setCiderToken() {}, testConnection: async () => true,
     getTrackInfo: async () => ({ title: 'test' }), renderNowPlaying: async () => 'data:image/png;base64,fixture',
     getPlaybackProgress: async () => null,
     togglePlayPause: async () => { playback.push('playpause'); return true },

@@ -3,12 +3,10 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { Canvas: NativeCanvas, loadImage } = require('skia-canvas')
+const { appearance, renderer } = require('./support.cjs')
 
 const sourceRoot = process.env.CIDER_TEST_SOURCE || path.join(__dirname, '..', 'src')
 const readSource = name => fs.readFileSync(path.join(sourceRoot, name), 'utf8').replace(/^import .*\r?\n/gm, '')
-function renderer(Canvas = NativeCanvas) {
-  return new Function('Canvas', 'loadImage', readSource('canvasRenderer.js').replace('export async function', 'async function') + '\nreturn renderNowPlaying')(Canvas, loadImage)
-}
 const render = renderer()
 const track = { title: '夜曲 · アイドル · 좋은 날 · déjà vu 👩🏽‍🚀', artist: '周杰伦 · YOASOBI · 아이유 · Beyoncé' }
 const key = (name, uid, width = 180) => ({
@@ -26,9 +24,9 @@ function harness(renderImage = render) {
   }
   const action = name => async () => { actions.push(name); return true }
   const names = ['plugin', 'logger', 'setCiderToken', 'testConnection', 'getTrackInfo', 'togglePlayPause', 'nextTrack', 'previousTrack', 'getVolume', 'setVolume', 'renderNowPlaying', 'setInterval', 'getPlaybackProgress']
-  new Function(...names, readSource('plugin.js'))(plugin, { warn: msg => warnings.push(msg) }, () => {}, async () => true, async () => track,
+  new Function(...names, ...Object.keys(appearance), readSource('plugin.js'))(plugin, { warn: msg => warnings.push(msg) }, () => {}, async () => true, async () => track,
     action('playpause'), action('next'), action('previous'), async () => 0.72, action('volume'), renderImage,
-    callback => { timer = callback; return { unref() {} } }, async () => null)
+    callback => { timer = callback; return { unref() {} } }, async () => null, ...Object.values(appearance))
   return { handlers, draws, sliders, actions, warnings, tick: () => timer(),
     alive: (keys, serialNumber = 'device-a') => handlers['plugin.alive']({ serialNumber, keys }) }
 }

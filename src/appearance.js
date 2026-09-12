@@ -1,0 +1,31 @@
+import { FontLibrary } from "skia-canvas"
+
+export const FONT_STACK = '"Microsoft YaHei", "Microsoft JhengHei", "Yu Gothic", "Malgun Gothic", "Segoe UI", sans-serif'
+
+export function getAvailableFontFamilies() {
+  return [...new Set(FontLibrary.families.filter(name => typeof name === "string" && name.trim()))]
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function availableFont(value) {
+  if (typeof value !== "string" || !value.trim()) return ""
+  try { return FontLibrary.has(value) ? value : "" } catch { return "" }
+}
+
+export function normalizeAppearance(config) {
+  const color = typeof config?.timelineColor === "string" ? config.timelineColor.trim() : ""
+  return {
+    showPlayPauseOverlay: config?.showPlayPauseOverlay !== false,
+    timelineColor: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : "#ffffff",
+    fontFamily: availableFont(config?.fontFamily),
+  }
+}
+
+export function getFontStack(fontFamily) {
+  const family = availableFont(fontFamily)
+  if (!family) return FONT_STACK
+  // CSS quoted strings: escape quotes/backslashes and encode control characters.
+  const quoted = family.replace(/["\\]/g, "\\$&")
+    .replace(/[\x00-\x1f\x7f]/g, character => `\\${character.charCodeAt(0).toString(16)} `)
+  return `"${quoted}", ${FONT_STACK}`
+}
