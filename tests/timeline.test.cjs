@@ -134,7 +134,8 @@ function harness(options = {}) {
     draw:async (serialNumber,key,type,image) => { draws.push({serialNumber,key,type,image}); return options.draw?.() ?? {status:'success'} },
     setSlider:async (serialNumber,key,value) => { sliders.push({serialNumber,key:structuredClone(key),value});return {status:'success'} },
   }
-  const params = { ...appearance, plugin,logger:{warn(){}},setCiderToken(){},testConnection:async()=>true,
+  const tokens=[]
+  const params = { ...appearance, plugin,logger:{warn(){}},setCiderToken(token){tokens.push(token)},testConnection:async()=>true,
     getTrackInfo:async()=>{ counters.metadata++; return options.metadata ? options.metadata() : {...track} },
     getPlaybackProgress:async()=>{ counters.progress++; return options.progress ? options.progress() : progress && {...progress} },
     renderNowPlaying:async(t,k,settings)=>{ counters.render++; return options.render ? options.render(t,k,settings) : JSON.stringify({track:t,width:k.width,settings}) },
@@ -147,7 +148,7 @@ function harness(options = {}) {
     clearTimeout(timer) { timeouts.delete(timer) },
   }
   const runtime = new Function(...Object.keys(params),source('plugin.js') + '\nreturn {idle:()=>refreshPromise,controlsIdle:()=>Promise.all([volumeRefreshPromise,listeningRefreshPromise])}')( ...Object.values(params))
-  return { handlers,draws,sliders,counters,timers,timeouts,options, setProgress(value){progress=value},setTrack(value){track=value},last:()=>JSON.parse(draws.filter(d=>d.type==='base64').at(-1).image),
+  return { handlers,draws,sliders,counters,timers,timeouts,tokens,options, setProgress(value){progress=value},setTrack(value){track=value},last:()=>JSON.parse(draws.filter(d=>d.type==='base64').at(-1).image),
     advance:async ms=>{time+=ms;for(const timer of [...timeouts])if(timer.at<=time){timeouts.delete(timer);timer.fn()}await runtime.idle()},
     save:async update=>{options.config={...options.config,...update};await handlers['plugin.config.updated']({config:{ciderToken:'fixture-token',...options.config}})},
     alive:(keys,serialNumber='device')=>handlers['plugin.alive']({serialNumber,keys}),
@@ -258,6 +259,7 @@ test('appearance saves redraw current keys immediately from cached playback with
     assert.equal(h.draws.length,1);assert.equal(h.draws[0].key.uid,1)
     assert.deepEqual(h.last().settings,appearance.normalizeAppearance(config))
     assert.deepEqual({progress:h.counters.progress,metadata:h.counters.metadata,volume:h.counters.volume,modes:h.counters.modes},calls)
+    assert.deepEqual(h.tokens,['fixture-token'],'appearance save must not reinitialize the token')
     const count=h.draws.length;await h.handlers['plugin.config.updated']({config});await h.tick()
     assert.equal(h.draws.length,count,'saving unchanged appearance must not continuously redraw')
   }
@@ -282,6 +284,7 @@ test('appearance saves leave native Volume untouched, including the next poll an
   assert.deepEqual(h.sliders.at(-1).key,saved,'external volume sync must retain the slider font and style')
   await h.handlers['plugin.config.updated']({config:{ciderToken:'changed-fixture',fontFamily:'',fontSize:18}})
   assert.equal(h.sliders.length,3,'changing the connection still resynchronizes Volume')
+  assert.deepEqual(h.tokens,['fixture-token','changed-fixture'])
 })
 
 test('equal-time state changes invalidate frames and Now Playing clicks work in all overlay/state combinations', async () => {

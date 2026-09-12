@@ -237,7 +237,7 @@ test('delay UI saves numeric seconds and normalizes malformed entries', async ()
   const store={config:{ciderToken:'fixture-token'},saves:0}
   const page=settingsPage(store,async()=>({success:true,fonts:[]}));await page.open()
   for(const [input,expected] of [['5',5],['30',30],['1',1],['',3],['2.5',3],['31',3],[null,3],[true,3]]) {
-    page.vm.playPauseOverlayHideDelaySeconds=input;await page.vm.saveSettings()
+    page.vm.playPauseOverlayHideDelaySeconds=input;await page.vm.saveAppearanceSettings()
     assert.equal(store.config.playPauseOverlayHideDelaySeconds,expected)
     assert.equal(page.vm.playPauseOverlayHideDelaySeconds,expected)
     assert.equal(store.config.ciderToken,'fixture-token')
@@ -250,7 +250,7 @@ function settingsPage(store,send) {
   return {vm,open:()=>component.mounted.call(vm)}
 }
 
-test('one Save persists appearance and token, preserves unrelated config, and survives page/backend recreation', async () => {
+test('appearance Save preserves token and unrelated config and survives page/backend recreation', async () => {
   const fonts=appearance.getAvailableFontFamilies(),chosen=fonts.find(name=>name.includes(' '))||fonts[0]
   const store={config:{ciderToken:'fixture-token',unrelated:{keep:true}},saves:0},requests=[]
   const send=async payload=>{requests.push(payload);return payload.data==='cider-list-fonts'?{success:true,fonts}:{success:true}}
@@ -264,7 +264,7 @@ test('one Save persists appearance and token, preserves unrelated config, and su
   store.config.newUnrelated='preserve latest'
   await page.vm.testConnection();assert.equal(store.saves,0)
   assert.deepEqual(requests.at(-1),{data:'cider-test-connection',ciderToken:'fixture-token'})
-  await page.vm.saveSettings();assert.equal(store.saves,1)
+  await page.vm.saveAppearanceSettings();assert.equal(store.saves,1)
   assert.deepEqual(store.config,{ciderToken:'fixture-token',unrelated:{keep:true},newUnrelated:'preserve latest',showPlayPauseOverlay:false,autoHidePlayPauseOverlay:true,playPauseOverlayHideDelaySeconds:5,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
   for(let i=0;i<2;i++) {
     page=settingsPage(store,send);await page.open()
@@ -273,10 +273,10 @@ test('one Save persists appearance and token, preserves unrelated config, and su
     assert.equal(page.vm.autoHidePlayPauseOverlay,true);assert.equal(page.vm.playPauseOverlayHideDelaySeconds,5)
     assert.deepEqual(loadAppearance().normalizeAppearance(store.config),{showPlayPauseOverlay:false,autoHidePlayPauseOverlay:true,playPauseOverlayHideDelaySeconds:5,timelineColor:'#00ff88',fontFamily:chosen,fontSize:22})
   }
-  page.vm.showPlayPauseOverlay=true;await page.vm.saveSettings()
+  page.vm.showPlayPauseOverlay=true;await page.vm.saveAppearanceSettings()
   page=settingsPage(store,send);await page.open();assert.equal(page.vm.showPlayPauseOverlay,true)
   assert.equal(store.config.ciderToken,'fixture-token')
-  page.vm.fontSize=null;await page.vm.saveSettings()
+  page.vm.fontSize=null;await page.vm.saveAppearanceSettings()
   page=settingsPage(store,send);await page.open();assert.equal(page.vm.fontSize,null)
 })
 
@@ -287,8 +287,8 @@ test('font failure or removed font leaves System Default and working token contr
     await page.open()
     assert.equal(page.vm.loading,false);assert.equal(page.vm.fontsLoading,false);assert.equal(page.vm.fontFamily,'')
     assert.deepEqual(page.vm.fontItems,[{title:'System Default',value:''}])
-    await page.vm.testConnection();assert.equal(page.vm.message,'Connected to Cider')
-    page.vm.timelineColor='invalid';await page.vm.saveSettings()
+    await page.vm.testConnection();assert.equal(page.vm.connectionMessage,'Connected to Cider')
+    page.vm.timelineColor='invalid';await page.vm.saveAppearanceSettings()
     assert.equal(store.config.timelineColor,'#ffffff');assert.equal(store.config.ciderToken,'fixture-token')
   }
 })
@@ -297,12 +297,50 @@ test('saving while fonts load preserves the saved family; load/save failures do 
   const chosen=appearance.getAvailableFontFamilies()[0],store={config:{ciderToken:'fixture-token',fontFamily:chosen},saves:0}
   let resolve
   const page=settingsPage(store,()=>new Promise(r=>{resolve=r})),opening=page.open()
-  await new Promise(r=>setImmediate(r));await page.vm.saveSettings()
+  await new Promise(r=>setImmediate(r));await page.vm.saveAppearanceSettings()
   assert.equal(store.config.fontFamily,chosen)
   resolve({success:true,fonts:[chosen]});await opening
   page.vm.$fd.setConfig=async()=>({status:'error'})
-  await page.vm.saveSettings();assert.equal(page.vm.messageType,'error')
+  page.vm.fontSize=18
+  await page.vm.saveAppearanceSettings();assert.equal(page.vm.appearanceMessageType,'error')
   const failed=settingsPage(store,async()=>({success:true,fonts:[]}))
   failed.vm.$fd.getConfig=async()=>{throw Error('unavailable')}
-  await failed.open();assert.equal(failed.vm.loading,true);assert.equal(failed.vm.messageType,'error')
+  await failed.open();assert.equal(failed.vm.loading,true);assert.equal(failed.vm.connectionMessageType,'error')
+})
+
+test('Token and Appearance saves preserve the other section, latest config, and unsaved drafts independently', async () => {
+  const store={config:{ciderToken:'saved-token',timelineColor:'#ffffff',fontSize:18,unrelated:{keep:true}},saves:0}
+  const send=async()=>({success:true,fonts:[]}),page=settingsPage(store,send);await page.open()
+  page.vm.ciderToken='unsaved-token';page.vm.fontSize=26
+  store.config.ciderToken='latest-token'
+  await page.vm.saveAppearanceSettings()
+  assert.equal(store.config.ciderToken,'latest-token','appearance must never save a stale or draft token')
+  assert.equal(store.config.fontSize,26);assert.equal(page.vm.ciderToken,'unsaved-token')
+  assert.equal(page.vm.appearanceMessage,'Appearance saved');assert.equal(page.vm.connectionMessage,'')
+  page.vm.fontSize=30;page.vm.timelineColor='#0088ff'
+  store.config.timelineColor='#00ff88';store.config.unrelated.extra='latest'
+  await page.vm.saveConnectionSettings()
+  assert.equal(store.config.ciderToken,'unsaved-token');assert.equal(store.config.fontSize,26)
+  assert.equal(store.config.timelineColor,'#00ff88');assert.equal(store.config.unrelated.extra,'latest')
+  assert.equal(page.vm.fontSize,30);assert.equal(page.vm.timelineColor,'#0088ff')
+  assert.equal(page.vm.connectionMessage,'Token saved');assert.equal(page.vm.appearanceMessage,'Appearance saved')
+  const count=store.saves;await page.vm.saveConnectionSettings();assert.equal(store.saves,count,'same token must not resend config')
+  const reopened=settingsPage(store,send);await reopened.open();await reopened.vm.saveAppearanceSettings()
+  assert.equal(store.saves,count,'unchanged appearance must not resend config')
+  assert.match(settingsSource,/@click="saveConnectionSettings">SAVE TOKEN/)
+  assert.match(settingsSource,/@click="saveAppearanceSettings">SAVE APPEARANCE/)
+})
+
+test('each Save reports its own error and unavailable settings cannot overwrite config', async () => {
+  for(const section of ['Connection','Appearance']) {
+    const store={config:{ciderToken:'saved-token'},saves:0},page=settingsPage(store,async()=>({success:true,fonts:[]}));await page.open()
+    page.vm.ciderToken='new-token';page.vm.fontSize=20
+    page.vm.$fd.setConfig=async()=>({status:'error'})
+    await page.vm[`save${section}Settings`]()
+    assert.equal(page.vm[`${section.toLowerCase()}MessageType`],'error')
+    assert.equal(store.config.ciderToken,'saved-token');assert.equal(store.saves,0)
+    page.vm.loading=true;page.vm.$fd.getConfig=async()=>{throw Error('must not read')}
+    await page.vm[`save${section}Settings`]()
+    assert.equal(store.saves,0)
+  }
 })

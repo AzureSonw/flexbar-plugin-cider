@@ -7,13 +7,13 @@
         type="password"
         autocomplete="off"
         :disabled="busy || loading"
-        @update:model-value="message = ''"
+        @update:model-value="connectionMessage = ''"
       />
-      <v-alert v-if="message" :type="messageType" variant="tonal" class="mb-4">
-        {{ message }}
+      <v-alert v-if="connectionMessage" :type="connectionMessageType" variant="tonal" class="mb-4">
+        {{ connectionMessage }}
       </v-alert>
       <v-btn :disabled="busy || loading || !ciderToken" @click="testConnection">TEST CONNECTION</v-btn>
-      <v-btn class="ml-2" color="primary" :disabled="busy || loading" @click="saveSettings">SAVE SETTINGS</v-btn>
+      <v-btn class="ml-2" color="primary" :disabled="busy || loading" @click="saveConnectionSettings">SAVE TOKEN</v-btn>
     </v-card-text>
   </v-card>
   <v-card title="Now Playing Appearance" class="mt-4">
@@ -99,10 +99,10 @@
         hint="Title size: 12–30 px. The artist line adapts to fit. Leave empty to use the key's font size."
         persistent-hint
       />
-      <v-alert v-if="message" :type="messageType" variant="tonal" class="mt-4">
-        {{ message }}
+      <v-alert v-if="appearanceMessage" :type="appearanceMessageType" variant="tonal" class="mt-4">
+        {{ appearanceMessage }}
       </v-alert>
-      <v-btn class="mt-4" color="primary" :disabled="busy || loading" @click="saveSettings">SAVE SETTINGS</v-btn>
+      <v-btn class="mt-4" color="primary" :disabled="busy || loading" @click="saveAppearanceSettings">SAVE APPEARANCE</v-btn>
     </v-card-text>
   </v-card>
 </template>
@@ -112,7 +112,9 @@ export default {
   props: { modelValue: { type: Object, required: true } },
   data() {
     return {
-      ciderToken: "", loading: true, busy: false, message: "", messageType: "info",
+      ciderToken: "", loading: true, busy: false,
+      connectionMessage: "", connectionMessageType: "info",
+      appearanceMessage: "", appearanceMessageType: "info",
       showPlayPauseOverlay: true, timelineColor: "#ffffff", fontFamily: "", fontSize: null,
       autoHidePlayPauseOverlay: false, playPauseOverlayHideDelaySeconds: 3,
       fonts: [], fontsLoading: true, fontMessage: "",
@@ -150,8 +152,8 @@ export default {
       this.fontSize = config?.fontSize
       this.fontSize = this.normalizedFontSize
     } catch {
-      this.message = "Could not load settings. Reopen this page to try again."
-      this.messageType = "error"
+      this.connectionMessage = this.appearanceMessage = "Could not load settings. Reopen this page to try again."
+      this.connectionMessageType = this.appearanceMessageType = "error"
       return
     }
     this.loading = false
@@ -175,30 +177,43 @@ export default {
         this.fontsLoading = false
       }
     },
-    async saveSettings() {
+    async saveConnectionSettings() {
+      await this.persistSettings({ ciderToken: this.ciderToken }, "connection")
+    },
+    async saveAppearanceSettings() {
+      const saved = await this.persistSettings({
+        showPlayPauseOverlay: this.showPlayPauseOverlay !== false,
+        autoHidePlayPauseOverlay: this.autoHidePlayPauseOverlay === true,
+        playPauseOverlayHideDelaySeconds: this.normalizedOverlayDelay,
+        timelineColor: this.normalizedColor,
+        fontFamily: this.fontsLoading || this.fonts.includes(this.fontFamily) ? this.fontFamily : "",
+        fontSize: this.normalizedFontSize,
+      }, "appearance")
+      if (saved) {
+        this.timelineColor = saved.timelineColor
+        this.fontSize = saved.fontSize
+        this.playPauseOverlayHideDelaySeconds = saved.playPauseOverlayHideDelaySeconds
+      }
+    },
+    async persistSettings(patch, section) {
+      if (this.busy || this.loading) return null
       this.busy = true
       try {
-        const config = {
-          ...await this.$fd.getConfig(),
-          ciderToken: this.ciderToken,
-          showPlayPauseOverlay: this.showPlayPauseOverlay !== false,
-          autoHidePlayPauseOverlay: this.autoHidePlayPauseOverlay === true,
-          playPauseOverlayHideDelaySeconds: this.normalizedOverlayDelay,
-          timelineColor: this.normalizedColor,
-          fontFamily: this.fontsLoading || this.fonts.includes(this.fontFamily) ? this.fontFamily : "",
-          fontSize: this.normalizedFontSize,
+        const latest = await this.$fd.getConfig()
+        const config = { ...latest, ...patch }
+        const changed = Object.keys(patch).some(key => JSON.stringify(latest?.[key]) !== JSON.stringify(patch[key]))
+        if (changed) {
+          const result = await this.$fd.setConfig(config)
+          if (result?.status === "error") throw new Error("Save failed")
+          this.modelValue.config = config
         }
-        const result = await this.$fd.setConfig(config)
-        if (result?.status === "error") throw new Error("Save failed")
-        this.modelValue.config = config
-        this.timelineColor = config.timelineColor
-        this.fontSize = config.fontSize
-        this.playPauseOverlayHideDelaySeconds = config.playPauseOverlayHideDelaySeconds
-        this.message = "Settings saved"
-        this.messageType = "success"
+        this[`${section}Message`] = section === "connection" ? "Token saved" : "Appearance saved"
+        this[`${section}MessageType`] = "success"
+        return config
       } catch {
-        this.message = "Could not save settings"
-        this.messageType = "error"
+        this[`${section}Message`] = section === "connection" ? "Could not save token" : "Could not save appearance"
+        this[`${section}MessageType`] = "error"
+        return null
       } finally {
         this.busy = false
       }
@@ -207,11 +222,11 @@ export default {
       this.busy = true
       try {
         const result = await this.$fd.sendToBackend({ data: "cider-test-connection", ciderToken: this.ciderToken })
-        this.message = result?.success ? "Connected to Cider" : "Connection failed / invalid token"
-        this.messageType = result?.success ? "success" : "error"
+        this.connectionMessage = result?.success ? "Connected to Cider" : "Connection failed / invalid token"
+        this.connectionMessageType = result?.success ? "success" : "error"
       } catch {
-        this.message = "Connection failed / invalid token"
-        this.messageType = "error"
+        this.connectionMessage = "Connection failed / invalid token"
+        this.connectionMessageType = "error"
       } finally {
         this.busy = false
       }

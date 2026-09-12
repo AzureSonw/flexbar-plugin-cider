@@ -109,8 +109,8 @@ function applyConfig(config) {
     cancelOverlayTimeout()
     if (lastOverlayPlaybackState) showTemporaryOverlay()
   }
-  setCiderToken(config?.ciderToken)
   if (tokenChanged) {
+    setCiderToken(token)
     listeningRevision++
     listeningToken = token
     currentListeningMode = null
