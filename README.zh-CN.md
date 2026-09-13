@@ -4,7 +4,7 @@
 
 [![最新版本](https://img.shields.io/github/v/release/AzureSonw/flexbar-plugin-cider?label=release&color=5865f2)](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest) [![Cider 4.0](https://img.shields.io/badge/Cider-4.0-ec4899)](#-快速开始) [![FlexDesigner 2.2.2+](https://img.shields.io/badge/FlexDesigner-2.2.2%2B-5865f2)](#-快速开始) [![Windows 11](https://img.shields.io/badge/Windows-11-0078d4)](#-下载与平台支持) [![macOS 15+ 实验性支持](https://img.shields.io/badge/macOS-15%2B%20experimental-6b7280)](#-下载与平台支持) [![MIT 许可证](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
-[English](README.md) · 当前版本：[v1.5.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.5.0)
+[English](README.md) · 当前版本：[v2.0.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v2.0.0)
 
 ## ✨ 功能
 
@@ -22,7 +22,7 @@
 2. 通过 FlexDesigner 的插件管理器安装 `.flexplugin` 文件。
 3. 按下方教程[创建并复制 Cider token](#-获取-cider-api-token)。
 4. 打开 **FlexDesigner → Settings → Application → Cider**（设置 → 应用 → Cider），将 token 粘贴到 **Cider API Token**。
-5. 点击 **TEST CONNECTION**，确认显示 **Connected to Cider**，再点击 **SAVE SETTINGS**。
+5. 点击 **TEST CONNECTION**，确认显示 **Connected to Cider**，再点击 **SAVE TOKEN**。
 6. 从按键库添加 Cider 控件到布局，保存并上传到 Flexbar。
 
 ## 🔑 获取 Cider API Token
@@ -40,7 +40,7 @@
 1. 打开 **Settings → Application → Cider**（设置 → 应用 → Cider）。
 2. 将复制的 token 粘贴到 **Cider API Token**。
 3. 点击 **TEST CONNECTION**，确认显示 **Connected to Cider**。
-4. 点击 **SAVE SETTINGS**，保存后生效。
+4. 点击 **SAVE TOKEN**，保存后生效。
 
 连接测试不会自动保存 token。请妥善保管 token，并在使用插件时保持 Cider 运行。
 
@@ -51,11 +51,15 @@
 | 设置 | 功能 |
 | --- | --- |
 | Show Play/Pause Overlay | 默认开启。播放时显示暂停图标，暂停时显示播放图标；关闭后仍可点击按键切换播放状态。 |
+| Auto-hide Play/Pause Overlay | 默认关闭。开启后，图标在初始化或播放状态改变时出现，经过设定时间后隐藏。 |
+| Hide Overlay After | **1–30 秒的整数**，默认 **3 秒**；需同时开启图标显示与自动隐藏。 |
 | Timeline Color | 设置进度条已播放部分的颜色，默认为白色。 |
 | Now Playing Font | 选择电脑上已安装的字体，或 **System Default**；只用于歌名和歌手。 |
 | Now Playing Font Size | 将歌名字号设为 **12–30 px**，留空则沿用按键字号；歌手文字会自动调整以适应空间。 |
 
-点击字体设置下方的 **SAVE SETTINGS** 即可立即应用。**Cider Connection** 中的保存按钮也会保存相同设置。所选字体不可用时会回退到系统默认字体。
+点击字体设置下方的 **SAVE APPEARANCE** 即可立即应用，无需重新连接 Cider 或上传布局。**Cider Connection** 中的 **SAVE TOKEN** 仅保存连接 Token；两个区域均保留另一区域已保存的值。所选字体不可用时会回退到系统默认字体。
+
+开启自动隐藏后，使用任一播放/暂停控件，或直接在 Cider 中切换播放状态，都会显示对应图标并重新计时。图标隐藏后仍可点击按键切换播放状态。
 
 ## 🎛️ 可用控制
 
@@ -93,7 +97,7 @@ macOS 为**实验性支持**：两种架构均通过 CI 检查，实体 Flexbar 
 
 | 问题 | 处理方法 |
 | --- | --- |
-| 连接测试失败 | 保持 Cider 运行，检查 **Settings → Connectivity → External Applications → RPC Server**。从 **Manage External Application Access to Cider** 重新复制 token，正确粘贴并测试后，点击 **SAVE SETTINGS**。另外请确认安装包与平台和架构匹配：例如 macOS 安装了 Windows 版安装包，或下载了错误的 macOS 架构版本，也可能导致连接测试失败。 |
+| 连接测试失败 | 保持 Cider 运行，检查 **Settings → Connectivity → External Applications → RPC Server**。从 **Manage External Application Access to Cider** 重新复制 token，正确粘贴并测试后，点击 **SAVE TOKEN**。另外请确认安装包与平台和架构匹配：例如 macOS 安装了 Windows 版安装包，或下载了错误的 macOS 架构版本，也可能导致连接测试失败。 |
 | 显示 **Set Cider Token** | 在 **FlexDesigner → Settings → Application → Cider** 中配置并保存 token。 |
 | 更新似乎没有生效 | 保存并上传布局，然后重启 FlexDesigner，清理仍在运行的旧链接后端。 |
 | 部分字符缺失 | 安装对应语言的系统字体；插件不附带字体。 |

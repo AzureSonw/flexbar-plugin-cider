@@ -4,7 +4,7 @@ Control Cider from Flexbar with album artwork, live playback progress, playback 
 
 [![Latest release](https://img.shields.io/github/v/release/AzureSonw/flexbar-plugin-cider?label=release&color=5865f2)](https://github.com/AzureSonw/flexbar-plugin-cider/releases/latest) [![Cider 4.0](https://img.shields.io/badge/Cider-4.0-ec4899)](#-quick-start) [![FlexDesigner 2.2.2+](https://img.shields.io/badge/FlexDesigner-2.2.2%2B-5865f2)](#-quick-start) [![Windows 11](https://img.shields.io/badge/Windows-11-0078d4)](#-downloads) [![macOS 15+ experimental](https://img.shields.io/badge/macOS-15%2B%20experimental-6b7280)](#-downloads) [![MIT License](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
-[简体中文](README.zh-CN.md) · Current release: [v1.5.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v1.5.0)
+[简体中文](README.zh-CN.md) · Current release: [v2.0.0](https://github.com/AzureSonw/flexbar-plugin-cider/releases/tag/v2.0.0)
 
 ## ✨ Features
 
@@ -22,7 +22,7 @@ You need a Flexbar and a computer running **Cider 4.0** and **FlexDesigner 2.2.2
 2. Install the `.flexplugin` file through FlexDesigner's plugin manager.
 3. [Create and copy your Cider token](#-get-your-cider-api-token).
 4. Open **FlexDesigner → Settings → Application → Cider** and paste it into **Cider API Token**.
-5. Click **TEST CONNECTION**, confirm **Connected to Cider**, then click **SAVE SETTINGS**.
+5. Click **TEST CONNECTION**, confirm **Connected to Cider**, then click **SAVE TOKEN**.
 6. Add Cider controls from the key library to your layout, save, and upload to Flexbar.
 
 ## 🔑 Get Your Cider API Token
@@ -40,7 +40,7 @@ You need a Flexbar and a computer running **Cider 4.0** and **FlexDesigner 2.2.2
 1. Open **Settings → Application → Cider**.
 2. Paste the copied token into **Cider API Token**.
 3. Click **TEST CONNECTION** and confirm **Connected to Cider**.
-4. Click **SAVE SETTINGS** to apply it.
+4. Click **SAVE TOKEN** to apply it.
 
 Testing does not save the token. Keep your token private and leave Cider running while using the plugin.
 
@@ -51,11 +51,15 @@ Open **FlexDesigner → Settings → Application → Cider** and scroll to **Now
 | Setting | Behavior |
 | --- | --- |
 | Show Play/Pause Overlay | Enabled by default. Shows a pause icon while playing and a play icon while paused. Turning it off keeps tap-to-play/pause working. |
+| Auto-hide Play/Pause Overlay | Off by default. When enabled, the icon appears on initialization and playback changes, then hides after the configured delay. |
+| Hide Overlay After | **1–30 whole seconds**, default **3**. Available when the overlay and auto-hide are both enabled. |
 | Timeline Color | Sets the played portion of the timeline; white by default. |
 | Now Playing Font | Choose a font installed on your computer, or **System Default**. Applies to the song title and artist. |
 | Now Playing Font Size | Set the title to **12–30 px**, or leave empty to use the key's font size. The artist line adapts to fit. |
 
-Click **SAVE SETTINGS** below the font controls to apply your choices immediately. The save button in **Cider Connection** saves the same settings. Unavailable fonts fall back to the system default.
+Click **SAVE APPEARANCE** below the font controls to apply your choices immediately, without reconnecting Cider or uploading the layout again. **SAVE TOKEN** in **Cider Connection** saves only the connection token; each section preserves the other section's saved values. Unavailable fonts fall back to the system default.
+
+With auto-hide enabled, using either Play/Pause control or changing playback directly in Cider shows the appropriate icon and restarts the countdown. Tap-to-play/pause remains available after the icon hides.
 
 ## 🎛️ Available Controls
 
@@ -93,7 +97,7 @@ Match FlexDesigner's architecture: Intel FlexDesigner running under Rosetta need
 
 | Problem | What to check |
 | --- | --- |
-| Connection test fails | Keep Cider running; check **Settings → Connectivity → External Applications → RPC Server**. Copy the token again from **Manage External Application Access to Cider**, paste it correctly, test, then click **SAVE SETTINGS**. Also make sure you installed the package for your platform and architecture: installing the Windows package on macOS, or the wrong macOS architecture package, can also cause the connection test to fail. |
+| Connection test fails | Keep Cider running; check **Settings → Connectivity → External Applications → RPC Server**. Copy the token again from **Manage External Application Access to Cider**, paste it correctly, test, then click **SAVE TOKEN**. Also make sure you installed the package for your platform and architecture: installing the Windows package on macOS, or the wrong macOS architecture package, can also cause the connection test to fail. |
 | **Set Cider Token** appears | Configure and save the token in **FlexDesigner → Settings → Application → Cider**. |
 | An update appears inactive | Save and upload the layout, then restart FlexDesigner to clear an older linked backend. |
 | Missing characters | Install a system font for the affected language; fonts are not bundled. |
