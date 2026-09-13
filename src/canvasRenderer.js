@@ -2,7 +2,7 @@ import { Canvas, loadImage } from "skia-canvas"
 import { FONT_STACK, getFontStack, normalizeAppearance } from "./appearance"
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" })
-const RIGHT_EDGE_GUARD = 2
+const RIGHT_EDGE_GUARD = 3
 
 function fitText(context, value, maxWidth) {
   const text = String(value || "").replace(/[\r\n]+/g, " ")

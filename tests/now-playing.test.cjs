@@ -200,7 +200,7 @@ test('artwork and Unicode stay inside the bitmap, including extremely narrow key
         const image = await loadImage(await boundedRender({ ...track, artwork: art }, k))
         assert.equal(image.width, width); assert.equal(image.height, 60)
         assert.deepEqual(k, original)
-        const guard = Math.min(2, width - 1)
+        const guard = Math.min(3, width - 1)
         assert.deepEqual(operations.at(-1), { x:width-guard, y:0, width:guard, height:60 })
         const check = new NativeCanvas(width,60); check.gpu=false
         const pixels = check.getContext('2d'); pixels.drawImage(image,0,0)
